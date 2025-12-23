@@ -1,28 +1,32 @@
-# Multiplier Reader
+# Multiplier Reader with Supabase
 
-A Python-based real-time multiplier detection tool for games with multiplier mechanics. It captures the game screen, reads the multiplier value using OCR, and tracks game events like crashes and round endings.
+A Python-based real-time multiplier detection tool for games with multiplier mechanics. It captures the game screen, reads the multiplier value using OCR, tracks game events, and automatically saves round data to Supabase.
 
 ## Features
 
 - **Real-time Multiplier Detection**: Reads multiplier values from screen using OCR
 - **Game Event Tracking**: Detects game starts, multiplier increases, crashes, and high multipliers
+- **Automatic Data Storage**: Saves completed rounds to Supabase database
 - **GUI Region Selector**: Easy-to-use interface to select the multiplier region on screen
-- **Event Logging**: Comprehensive logging of all game events with timestamps
-- **Statistics Tracking**: Keeps track of crashes, max multipliers, and read success rates
-- **Configurable**: Save and load region configurations for quick setup
+- **Color-coded Output**: Terminal output with ANSI colors and ASCII sparklines
+- **Statistics Tracking**: Keeps track of crashes, max multipliers, and Supabase insertions
+- **Graceful Offline Mode**: Works even if Supabase is unavailable
 
 ## Project Structure
 
 ```
 bot/
-├── main.py                 # Main monitoring loop
-├── gui_selector.py        # Frontend for region selection
-├── config.py              # Configuration management
+├── main.py                 # Main monitoring loop with Supabase integration
+├── gui_selector.py        # GUI for region selection
+├── config.py              # Region configuration management
 ├── screen_capture.py      # Screen capture and image processing
 ├── multiplier_reader.py   # OCR and multiplier extraction
 ├── game_tracker.py        # Game state and event tracking
-├── setup.py               # Installation script
+├── supabase_client.py     # Supabase database client
+├── test_capture.py        # OCR testing utility
+├── multiplier_config.json # Saved region configuration
 ├── requirements.txt       # Python dependencies
+├── SUPABASE_WORKING.md    # Supabase integration guide
 └── README.md              # This file
 ```
 
@@ -35,12 +39,6 @@ cd /path/to/bot
 ```
 
 ### 2. Install Python Dependencies
-
-```bash
-python setup.py
-```
-
-Or manually:
 
 ```bash
 pip install -r requirements.txt
@@ -228,14 +226,23 @@ python main.py 1.0
 - Works best with 1920x1080 or higher resolution
 - Requires game window to be visible (can be minimized but not covered)
 
+## Supabase Integration
+
+Round data is automatically saved to Supabase when rounds complete:
+
+- **Data Saved**: roundId, multiplier, timestamp
+- **Automatic**: No configuration needed
+- **Graceful Degradation**: Works offline, saves when connection recovers
+
+See [SUPABASE_WORKING.md](SUPABASE_WORKING.md) for configuration details.
+
 ## Future Improvements
 
-- [ ] Screenshot preprocessing for better OCR
-- [ ] Alternative OCR engines (EasyOCR, PaddleOCR)
-- [ ] WebUI dashboard with live graphs
-- [ ] Database logging of all events
+- [ ] RLS policies for better security
+- [ ] Real-time dashboard with live data
+- [ ] Export to CSV/JSON
+- [ ] Detailed analytics per session
 - [ ] Sound/notification alerts
-- [ ] Mobile app for remote monitoring
 
 ## License
 
@@ -243,7 +250,8 @@ Open source for educational use.
 
 ## Support
 
-For issues or questions:
-1. Check the troubleshooting section above
+For issues:
+1. Check troubleshooting section above
 2. Verify Tesseract installation
-3. Review the configuration in `multiplier_config.json`
+3. See [SUPABASE_WORKING.md](SUPABASE_WORKING.md) for Supabase issues
+4. Review configuration in `multiplier_config.json`
