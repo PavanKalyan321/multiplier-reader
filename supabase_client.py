@@ -41,9 +41,9 @@ class SupabaseLogger:
             return False
 
         try:
-            # Prepare data matching AviatorRound schema
+            # Prepare data matching AviatorRound schema (note: roundId with capital I)
             data = {
-                'roundid': round_number,
+                'roundId': round_number,
                 'multiplier': multiplier,
                 'timestamp': timestamp.isoformat() if timestamp else datetime.now().isoformat()
             }
