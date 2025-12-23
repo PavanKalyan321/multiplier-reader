@@ -1,0 +1,417 @@
+================================================================================
+                        MULTIPLIER READER FILE GUIDE
+================================================================================
+
+This guide helps you understand what each file does and when to use it.
+
+================================================================================
+                            📚 DOCUMENTATION FILES
+================================================================================
+
+WHERE TO START:
+┌────────────────────────────────────────────────────────────────────────┐
+│ START_HERE.md (👈 READ THIS FIRST)                                     │
+│ ├─ Welcome guide                                                        │
+│ ├─ Quick overview of the project                                       │
+│ ├─ Three ways to get started                                          │
+│ ├─ Verification checklist                                             │
+│ └─ Directs you to other documentation                                 │
+│                                                                         │
+│ Next: QUICKSTART.md or WINDOWS_SETUP.md                              │
+└────────────────────────────────────────────────────────────────────────┘
+
+SETUP & INSTALLATION GUIDES:
+┌────────────────────────────────────────────────────────────────────────┐
+│ QUICKSTART.md (5-minute setup)                                          │
+│ ├─ What is this tool?                                                  │
+│ ├─ Installation steps (Python, Tesseract, dependencies)               │
+│ ├─ Quick setup procedure                                              │
+│ ├─ Step-by-step usage                                                 │
+│ ├─ Example output                                                      │
+│ └─ Adjusting speed                                                     │
+│                                                                         │
+│ Best For: Everyone (especially quick start)                           │
+│ Time: 5 minutes to read + 10 minutes to setup                         │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ WINDOWS_SETUP.md (Windows-specific guide)                              │
+│ ├─ Prerequisites for Windows                                          │
+│ ├─ Step-by-step installation                                         │
+│ ├─ Windows-specific troubleshooting                                   │
+│ ├─ Performance tuning                                                 │
+│ ├─ Creating desktop shortcuts                                        │
+│ └─ Complete file structure                                           │
+│                                                                         │
+│ Best For: Windows users who need detailed instructions                │
+│ Time: 15 minutes to read + 15 minutes to setup                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+COMPLETE REFERENCES:
+┌────────────────────────────────────────────────────────────────────────┐
+│ README.md (Complete feature reference)                                 │
+│ ├─ Project overview                                                    │
+│ ├─ Features explained                                                  │
+│ ├─ Installation (general)                                             │
+│ ├─ Usage instructions                                                 │
+│ ├─ Configuration options                                              │
+│ ├─ Game status detection                                              │
+│ ├─ Event tracking                                                      │
+│ ├─ Advanced configuration                                             │
+│ ├─ Troubleshooting                                                     │
+│ └─ Limitations & future ideas                                         │
+│                                                                         │
+│ Best For: Detailed reference & advanced options                       │
+│ Time: 20 minutes                                                       │
+└────────────────────────────────────────────────────────────────────────┘
+
+PROJECT OVERVIEW:
+┌────────────────────────────────────────────────────────────────────────┐
+│ PROJECT_SUMMARY.md (What you built)                                    │
+│ ├─ Complete project overview                                          │
+│ ├─ Key features explained                                             │
+│ ├─ Project structure                                                   │
+│ ├─ Technical stack                                                     │
+│ ├─ Module descriptions                                                │
+│ ├─ Performance characteristics                                        │
+│ ├─ System requirements                                                │
+│ └─ Future enhancement ideas                                           │
+│                                                                         │
+│ Best For: Understanding what you built                                │
+│ Time: 15 minutes                                                       │
+└────────────────────────────────────────────────────────────────────────┘
+
+TECHNICAL DESIGN:
+┌────────────────────────────────────────────────────────────────────────┐
+│ ARCHITECTURE.md (How it works)                                         │
+│ ├─ System architecture diagram                                        │
+│ ├─ Data flow pipeline                                                 │
+│ ├─ Module interaction map                                             │
+│ ├─ State machine diagram                                              │
+│ ├─ Event timeline example                                             │
+│ ├─ Class structure                                                     │
+│ ├─ Performance timing analysis                                        │
+│ └─ Error handling flow                                                │
+│                                                                         │
+│ Best For: Developers wanting to understand the system                 │
+│ Time: 20 minutes                                                       │
+└────────────────────────────────────────────────────────────────────────┘
+
+VALIDATION & TESTING:
+┌────────────────────────────────────────────────────────────────────────┐
+│ TESTING_GUIDE.md (Testing & validation)                                │
+│ ├─ Installation verification tests                                    │
+│ ├─ Component testing (5 test files)                                   │
+│ ├─ Integration testing procedures                                     │
+│ ├─ Performance testing                                                │
+│ ├─ Troubleshooting test procedures                                    │
+│ └─ Pre-production checklist                                           │
+│                                                                         │
+│ Best For: Validating your installation                                │
+│ Time: 30 minutes                                                       │
+└────────────────────────────────────────────────────────────────────────┘
+
+NAVIGATION & INDEX:
+┌────────────────────────────────────────────────────────────────────────┐
+│ INDEX.md (Documentation index)                                         │
+│ ├─ Documentation file descriptions                                    │
+│ ├─ Quick start paths (4 different routes)                            │
+│ ├─ Feature overview                                                    │
+│ ├─ Common tasks and how to do them                                   │
+│ ├─ Troubleshooting quick reference                                    │
+│ ├─ File statistics                                                     │
+│ ├─ Feature matrix                                                      │
+│ ├─ Quick links                                                         │
+│ └─ Learning paths for different users                                │
+│                                                                         │
+│ Best For: Quick reference & navigation                                │
+│ Time: 5 minutes (to scan)                                             │
+└────────────────────────────────────────────────────────────────────────┘
+
+PROJECT STATUS:
+┌────────────────────────────────────────────────────────────────────────┐
+│ PROJECT_COMPLETE.txt (This is your project summary)                    │
+│ ├─ Project overview                                                    │
+│ ├─ Files created (all 17 files)                                      │
+│ ├─ Quick start in 3 steps                                            │
+│ ├─ Key features list                                                   │
+│ ├─ Technical specifications                                           │
+│ ├─ Success checklist                                                   │
+│ └─ Project status                                                      │
+│                                                                         │
+│ Best For: Understanding what was created                              │
+│ Time: 5 minutes                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+FILE GUIDES:
+┌────────────────────────────────────────────────────────────────────────┐
+│ FILE_GUIDE.txt (You are reading this!)                                │
+│ ├─ What each file does                                                │
+│ ├─ When to use each file                                              │
+│ ├─ Reading order recommendations                                      │
+│ └─ Quick reference for finding things                                 │
+└────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                          💻 PYTHON CODE FILES
+================================================================================
+
+CORE APPLICATION (Do NOT modify these unless you know what you're doing):
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ main.py (Main monitoring application)                                  │
+│ ├─ Starts the monitoring loop                                         │
+│ ├─ Orchestrates all other modules                                    │
+│ ├─ Handles user input (Ctrl+C)                                       │
+│ ├─ Logs events to console                                             │
+│ ├─ Displays statistics                                                │
+│                                                                         │
+│ How to use:                                                           │
+│ ├─ python main.py                  (default 0.5s interval)          │
+│ ├─ python main.py 0.2              (faster: 0.2s)                   │
+│ ├─ python main.py 1.0              (slower: 1.0s)                   │
+│                                                                         │
+│ What it depends on: All other core modules                            │
+│ Modifying: Advanced users only                                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ screen_capture.py (Screen capture & preprocessing)                     │
+│ ├─ Captures full screen using PIL                                     │
+│ ├─ Extracts region of interest                                        │
+│ ├─ Preprocesses images for OCR                                       │
+│ ├─ Detects frame changes                                              │
+│                                                                         │
+│ Used by: main.py, gui_selector.py                                     │
+│ Functions to know:                                                     │
+│ ├─ capture_full_screen()           Gets entire screen                │
+│ ├─ capture_region()                Gets just the region               │
+│ ├─ preprocess_image(image)         Prepares for OCR                  │
+│                                                                         │
+│ Modifying: Advanced image processing tweaks                           │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ multiplier_reader.py (OCR text extraction)                             │
+│ ├─ Uses Tesseract for OCR                                             │
+│ ├─ Extracts numbers from images                                       │
+│ ├─ Detects game status                                                │
+│ ├─ Formats output                                                      │
+│                                                                         │
+│ Used by: main.py                                                      │
+│ Key function:                                                         │
+│ └─ read_multiplier()               Gets multiplier value              │
+│                                                                         │
+│ Modifying: Change OCR parameters or status detection logic            │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ game_tracker.py (Event detection & state tracking)                     │
+│ ├─ Tracks game state                                                   │
+│ ├─ Detects events (start, increase, crash)                           │
+│ ├─ Maintains event history                                            │
+│ ├─ Calculates statistics                                              │
+│                                                                         │
+│ Used by: main.py                                                      │
+│ Key method:                                                           │
+│ └─ update(multiplier, status)      Updates state and returns events   │
+│                                                                         │
+│ Modifying: Adjust thresholds or detection logic                       │
+│ Example:   Change crash_threshold=0.3 for more sensitive detection   │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ config.py (Configuration management)                                   │
+│ ├─ Manages region configuration                                       │
+│ ├─ Saves to JSON file                                                 │
+│ ├─ Loads from JSON file                                               │
+│ ├─ Validates region coordinates                                       │
+│                                                                         │
+│ Used by: All modules                                                   │
+│ Key functions:                                                         │
+│ ├─ save_config(region)             Save region to file                │
+│ ├─ load_config()                   Load region from file              │
+│ └─ get_default_region()            Returns default region             │
+│                                                                         │
+│ Modifying: Change default region size/location                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+USER INTERFACES:
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ gui_selector.py (Visual region selector)                               │
+│ ├─ Displays screen preview in Tkinter window                          │
+│ ├─ Allows drag-to-select region                                       │
+│ ├─ Shows coordinates and dimensions                                   │
+│ ├─ Tests region capture                                               │
+│ ├─ Saves configuration to file                                        │
+│                                                                         │
+│ How to use:                                                           │
+│ └─ python gui_selector.py          Opens GUI window                   │
+│                                                                         │
+│ What it does:                                                         │
+│ 1. Shows your screen                                                  │
+│ 2. You click and drag to select multiplier area                      │
+│ 3. Click "Save Region" to save                                       │
+│ 4. Click "Test Region" to preview                                    │
+│                                                                         │
+│ Modifying: Change UI layout or appearance                             │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ run.py (Quick-start menu)                                              │
+│ ├─ Provides menu interface                                            │
+│ ├─ Launches other programs                                            │
+│ ├─ Shows configuration                                                │
+│ ├─ Guides through setup                                               │
+│                                                                         │
+│ How to use:                                                           │
+│ └─ python run.py                   Opens menu                         │
+│                                                                         │
+│ Menu options:                                                         │
+│ 1. Configure region (gui_selector.py)                                │
+│ 2. Start monitoring (main.py)                                        │
+│ 3. View configuration                                                │
+│ 4. Run setup                                                          │
+│ 5. Exit                                                               │
+│                                                                         │
+│ Modifying: Add more menu options or change flow                       │
+└────────────────────────────────────────────────────────────────────────┘
+
+SETUP & CONFIGURATION:
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ setup.py (Installation helper)                                         │
+│ ├─ Installs Python dependencies                                       │
+│ ├─ Shows Tesseract installation instructions                         │
+│ ├─ Provides OS-specific help                                         │
+│                                                                         │
+│ How to use:                                                           │
+│ └─ python setup.py                 Runs setup wizard                  │
+│                                                                         │
+│ What it does:                                                         │
+│ 1. Installs required Python packages                                  │
+│ 2. Shows instructions for Tesseract                                  │
+│ 3. Explains next steps                                               │
+│                                                                         │
+│ Modifying: Rarely needed unless adding new dependencies              │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ requirements.txt (Python dependencies)                                 │
+│ ├─ Lists all required packages                                        │
+│ ├─ Specifies versions                                                 │
+│                                                                         │
+│ Current packages:                                                     │
+│ ├─ opencv-python (screen capture)                                    │
+│ ├─ Pillow (image processing)                                         │
+│ ├─ pytesseract (OCR interface)                                       │
+│ └─ numpy (numerical operations)                                       │
+│                                                                         │
+│ How to use:                                                           │
+│ └─ pip install -r requirements.txt                                    │
+│                                                                         │
+│ Modifying: Only if adding new package dependencies                    │
+└────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                          📁 CONFIGURATION FILE
+================================================================================
+
+┌────────────────────────────────────────────────────────────────────────┐
+│ multiplier_config.json (Created after first setup)                     │
+│                                                                         │
+│ Contains your selected region coordinates:                            │
+│ {                                                                       │
+│   "x1": 150,    (left edge pixel)                                     │
+│   "y1": 50,     (top edge pixel)                                      │
+│   "x2": 300,    (right edge pixel)                                    │
+│   "y2": 120     (bottom edge pixel)                                   │
+│ }                                                                       │
+│                                                                         │
+│ This file is:                                                         │
+│ ✓ Automatically created by gui_selector.py                           │
+│ ✓ Automatically loaded by main.py                                    │
+│ ✓ Can be manually edited (be careful with coordinates)               │
+│ ✓ Safe to delete (will be recreated on next setup)                   │
+│                                                                         │
+│ To reconfigure: Delete this file and run gui_selector.py again       │
+└────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                        🚀 HOW TO USE EACH FILE
+================================================================================
+
+FOR INITIAL SETUP:
+1. Read: START_HERE.md
+2. Read: QUICKSTART.md or WINDOWS_SETUP.md
+3. Run: setup.py
+4. Run: gui_selector.py (to configure region)
+5. Run: main.py (to start monitoring)
+
+FOR DAILY USE:
+- Run: python run.py (quick menu interface)
+  OR
+- Run: python main.py (direct monitoring)
+
+FOR UNDERSTANDING:
+1. Read: README.md (features)
+2. Read: ARCHITECTURE.md (how it works)
+3. Review: main.py and game_tracker.py (code)
+
+FOR VALIDATION:
+- Read: TESTING_GUIDE.md
+- Run: Test files mentioned in TESTING_GUIDE.md
+
+FOR REFERENCE:
+- Check: INDEX.md (for quick navigation)
+- Check: README.md (for specific features)
+
+FOR TROUBLESHOOTING:
+- Check: README.md#Troubleshooting
+- Check: WINDOWS_SETUP.md (if on Windows)
+- Check: TESTING_GUIDE.md#Troubleshooting
+
+================================================================================
+                          📖 RECOMMENDED READING ORDER
+================================================================================
+
+FIRST TIME USERS:
+1. This file (FILE_GUIDE.txt) - 2 minutes
+2. START_HERE.md - 3 minutes
+3. QUICKSTART.md - 5 minutes
+4. Follow setup steps - 15 minutes
+5. Run and enjoy! - ongoing
+
+WINDOWS USERS:
+1. START_HERE.md - 3 minutes
+2. WINDOWS_SETUP.md - 15 minutes
+3. Follow all steps carefully
+4. TESTING_GUIDE.md to verify - 10 minutes
+5. Ready to use!
+
+DEVELOPERS:
+1. PROJECT_SUMMARY.md - 15 minutes
+2. ARCHITECTURE.md - 20 minutes
+3. Review code files - 30 minutes
+4. TESTING_GUIDE.md - 30 minutes
+5. Ready to customize!
+
+COMPLETE UNDERSTANDING:
+1. START_HERE.md
+2. QUICKSTART.md
+3. README.md
+4. PROJECT_SUMMARY.md
+5. ARCHITECTURE.md
+6. INDEX.md
+7. Review all code files
+8. TESTING_GUIDE.md
+
+================================================================================
+
+That's your guide! Start with START_HERE.md and follow the path that fits
+your needs. All files are available in your bot folder.
+
+Good luck! 🚀
+
+================================================================================

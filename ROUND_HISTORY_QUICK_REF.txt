@@ -1,0 +1,277 @@
+================================================================================
+                      ROUND HISTORY FEATURE - QUICK REFERENCE
+================================================================================
+
+WHAT'S NEW:
+  The application now maintains a complete history of all game rounds played,
+  automatically displaying them after each round completes and at exit.
+
+================================================================================
+                              HOW IT WORKS
+================================================================================
+
+DURING MONITORING:
+  1. Start a round → Multiplier reads 1.00x
+  2. Play the game → Multiplier increases
+  3. Game crashes → Multiplier drops to 0
+  4. Round automatically saved to history array
+  5. Table displayed with all rounds so far
+  6. Ready for next round
+
+ON APPLICATION EXIT (Ctrl+C):
+  Shows:
+  - Overall statistics
+  - Complete round history table
+  - Summary statistics for all rounds
+
+ON READ FAILURE:
+  If OCR can't read multiplier:
+  - Checks if a round just ended
+  - If yes, logs it to history
+  - If no, continues monitoring
+  - Application continues normally
+
+================================================================================
+                             WHAT YOU'LL SEE
+================================================================================
+
+ROUND COMPLETION OUTPUT:
+────────────────────────────────────────────────────────────────────────────
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time     Duration    Max Mult    Crash At    Status     Events
+----------------------------------------------------------------------------------------------------
+1       14:23:46    14:23:50     4.25s       25.50x      0.00x       CRASHED    5
+2       14:23:52    14:23:58     6.10s       18.75x      0.00x       CRASHED    4
+3       14:23:59    14:24:08     9.35s       47.25x      0.00x       CRASHED    6
+====================================================================================================
+
+Statistics (All 3 rounds):
+  Max Multiplier Ever: 47.25x
+  Average Max Multiplier: 30.50x
+  Average Duration: 6.57s
+  Total Crashes: 3
+  Crash Rate: 100.0%
+====================================================================================================
+
+FINAL EXIT STATISTICS:
+────────────────────────────────────────────────────────────────────────────
+============================================================
+MULTIPLIER READER STATISTICS
+============================================================
+Elapsed time: 125.4s
+Total updates: 250
+Successful reads: 238
+Failed reads: 12
+Success rate: 95.2%
+Crashes detected: 5
+Max multiplier ever: 47.25x
+============================================================
+
+[Round history table here with all rounds]
+
+Statistics (All 5 rounds):
+  Max Multiplier Ever: 47.25x
+  Average Max Multiplier: 32.45x
+  Average Duration: 8.08s
+  Total Crashes: 5
+  Crash Rate: 100.0%
+============================================================
+
+================================================================================
+                         ROUND HISTORY DATA STORED
+================================================================================
+
+For each round, the system records:
+
+Round Number    - Sequential ID (1, 2, 3, ...)
+Start Time      - When round started (HH:MM:SS)
+End Time        - When round ended (HH:MM:SS)
+Duration        - How long round lasted (seconds)
+Max Mult        - Highest multiplier reached (e.g., 47.25x)
+Crash At        - Multiplier when game crashed (usually 0.00x)
+Status          - Current status (CRASHED, COMPLETED, etc.)
+Events          - Number of events in this round
+
+================================================================================
+                          ACCESSING THE HISTORY
+================================================================================
+
+PROGRAMMATICALLY (in code):
+
+Get all rounds:
+  history = app.game_tracker.get_round_history()
+
+Get last 5 rounds:
+  recent = app.game_tracker.get_round_history(limit=5)
+
+Get statistics:
+  stats = app.game_tracker.get_round_statistics()
+  print(stats['avg_max_multiplier'])
+
+Get formatted table:
+  table = app.game_tracker.format_round_history_table(limit=10)
+  print(table)
+
+DURING MONITORING:
+  - Automatically displayed after each round
+  - Just watch the console output
+
+AT EXIT:
+  - Displayed in final statistics
+  - Press Ctrl+C to see full history
+
+================================================================================
+                        KEY FEATURES
+================================================================================
+
+Automatic Tracking:
+  ✓ No manual action needed
+  ✓ Every round is recorded
+  ✓ Real-time display of history
+
+Smart Detection:
+  ✓ Recognizes round starts (multiplier = 1.0x)
+  ✓ Recognizes round ends (multiplier drops)
+  ✓ Handles read failures gracefully
+
+Statistics Generated:
+  ✓ Max multiplier reached
+  ✓ Average multiplier per round
+  ✓ Average duration per round
+  ✓ Total crashes
+  ✓ Crash rate percentage
+
+Professional Display:
+  ✓ Formatted tables
+  ✓ Easy to read statistics
+  ✓ Time-based information
+
+================================================================================
+                      UNDERSTANDING THE STATISTICS
+================================================================================
+
+Max Multiplier Ever:
+  The highest multiplier value reached across ALL rounds
+  Example: 47.25x
+
+Average Max Multiplier:
+  Average of the max multiplier in each round
+  Example: If rounds hit 25.5x, 18.75x, and 47.25x
+           Average = (25.5 + 18.75 + 47.25) / 3 = 30.5x
+
+Average Duration:
+  Average time per round
+  Example: If rounds lasted 4.25s, 6.10s, 9.35s
+           Average = (4.25 + 6.10 + 9.35) / 3 = 6.57s
+
+Total Crashes:
+  Total number of rounds that ended with a crash
+  Example: 5 rounds played, 5 crashed = 5 total crashes
+
+Crash Rate:
+  Percentage of rounds that ended with a crash
+  Example: 5 crashes / 5 total rounds = 100.0%
+
+================================================================================
+                           EXAMPLE SESSION
+================================================================================
+
+Terminal Output During Play:
+
+[14:23:45.345] Multiplier Reader started
+[14:23:45.456] Region: (150, 50) to (300, 120)
+[14:23:45.567] Update interval: 0.5s
+Press Ctrl+C to stop
+
+[14:23:46.123] GAME_START: New round initiated
+   Current: 1.00x | Max: 1.00x | Duration: 0.23s | Status: STARTING
+
+[14:23:47.456] MULTIPLIER_INCREASE: 2.50x (+0.50)
+[14:23:48.789] MULTIPLIER_INCREASE: 5.50x (+3.00)
+[14:23:50.012] CRASH: Reached 25.50x in 3.89s
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time     Duration    Max Mult    Crash At    Status     Events
+----------------------------------------------------------------------------------------------------
+1       14:23:46    14:23:50     4.25s       25.50x      0.00x       CRASHED    5
+====================================================================================================
+
+Statistics (All 1 rounds):
+  Max Multiplier Ever: 25.50x
+  Average Max Multiplier: 25.50x
+  Average Duration: 4.25s
+  Total Crashes: 1
+  Crash Rate: 100.0%
+====================================================================================================
+
+[14:23:52.345] GAME_START: New round initiated
+[14:23:53.678] MULTIPLIER_INCREASE: 1.75x (+0.75)
+[14:23:55.901] MULTIPLIER_INCREASE: 3.25x (+1.50)
+[14:23:58.123] CRASH: Reached 18.75x in 5.78s
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time     Duration    Max Mult    Crash At    Status     Events
+----------------------------------------------------------------------------------------------------
+1       14:23:46    14:23:50     4.25s       25.50x      0.00x       CRASHED    5
+2       14:23:52    14:23:58     6.10s       18.75x      0.00x       CRASHED    4
+====================================================================================================
+
+Statistics (All 2 rounds):
+  Max Multiplier Ever: 25.50x
+  Average Max Multiplier: 22.13x
+  Average Duration: 5.18s
+  Total Crashes: 2
+  Crash Rate: 100.0%
+====================================================================================================
+
+[And so on for each new round...]
+
+================================================================================
+                           TROUBLESHOOTING
+================================================================================
+
+Q: Why is a round not being saved?
+A: Check if:
+   - Multiplier started at 1.0x (game_start = 1.0x)
+   - Multiplier dropped to below 0.5 (default crash threshold)
+   - No OCR read errors
+
+Q: Why are statistics not showing?
+A: You need at least 1 completed round. Keep playing until first round ends.
+
+Q: Can I change the crash threshold?
+A: Yes, in the code: tracker = GameTracker(crash_threshold=0.3)
+
+Q: Can I save history to a file?
+A: Currently it displays in console. To save:
+   - Copy/paste from console
+   - Or write custom code to save game_tracker.round_history
+
+Q: Why did a read failure not end the round?
+A: Read failures only end a round if the game was actually running.
+   On the first update of a new round, read failures are ignored.
+
+================================================================================
+                           FILES TO CHECK
+================================================================================
+
+Implementation Details:
+  - game_tracker.py       (RoundSummary class, tracking logic)
+  - main.py               (Logging and display)
+
+Documentation:
+  - ROUND_HISTORY_FEATURE.md      (Detailed feature documentation)
+  - ROUND_HISTORY_QUICK_REF.txt   (This file - quick reference)
+
+================================================================================
+
+That's it! The round history is now automatically tracked and displayed.
+Enjoy your enhanced Multiplier Reader!
+
+================================================================================
