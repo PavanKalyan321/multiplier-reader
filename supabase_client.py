@@ -2,6 +2,7 @@
 from supabase import create_client, Client
 from datetime import datetime
 import os
+import time
 
 
 class SupabaseLogger:
@@ -30,7 +31,7 @@ class SupabaseLogger:
         Insert round data into AviatorRound table
 
         Args:
-            round_number (int): Round identifier
+            round_number (int): Round sequence number (not used as primary key)
             multiplier (float): Final/crash multiplier value
             timestamp (datetime): Round end timestamp (defaults to now)
 
@@ -41,9 +42,16 @@ class SupabaseLogger:
             return False
 
         try:
-            # Prepare data matching AviatorRound schema (note: roundId with capital I)
+            # Generate unique roundId based on timestamp
+            # Format: YYYYMMDDHHMMSS + milliseconds (e.g., 20251223151203123)
+            if timestamp is None:
+                timestamp = datetime.now()
+
+            unique_id = int(timestamp.strftime('%Y%m%d%H%M%S%f')[:15])
+
+            # Prepare data matching AviatorRound schema
             data = {
-                'roundId': round_number,
+                'roundId': unique_id,
                 'multiplier': multiplier,
                 'timestamp': timestamp.isoformat() if timestamp else datetime.now().isoformat()
             }
