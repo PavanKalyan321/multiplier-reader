@@ -82,6 +82,52 @@ class GameTracker:
         timestamp = time.time()
         events = []
 
+        # Crash detection via None multiplier (blank screen - OCR failed)
+        # If we get None during an active round, the game crashed
+        if multiplier is None and self.state.is_running:
+            self.state.is_running = False
+            self.state.crashed = True
+            round_duration = timestamp - self.state.round_start_time if self.state.round_start_time else 0
+
+            event = GameEvent(
+                event_type='CRASH',
+                timestamp=timestamp,
+                multiplier=None,
+                status='CRASHED',
+                details={
+                    'max_multiplier': self.state.max_multiplier,
+                    'round_duration': round_duration,
+                    'round_end_time': timestamp
+                }
+            )
+            events.append(event)
+
+            # Save round to history
+            self.round_number += 1
+            round_summary = RoundSummary(
+                round_number=self.round_number,
+                start_time=self.state.round_start_time,
+                end_time=timestamp,
+                duration=round_duration,
+                max_multiplier=self.state.max_multiplier,
+                crash_multiplier=self.state.max_multiplier,  # Use max since we don't have exact crash value
+                status='CRASHED',
+                events_count=len(self.round_events)
+            )
+            self.round_history.append(round_summary)
+            self.high_multiplier_reached = False
+
+            # Store events
+            for event in events:
+                self.events.append(event)
+                self.round_events.append(event)
+
+            return events
+
+        # If multiplier is None and no round is running, just return (waiting for round start)
+        if multiplier is None:
+            return events
+
         # Round start detection - either from multiplier == 1 (normal start) or from any RUNNING status (mid-round entry)
         if not self.state.is_running:
             if (multiplier == 1 and status == 'STARTING') or (status in ['RUNNING', 'HIGH'] and multiplier > 1):
@@ -129,42 +175,6 @@ class GameTracker:
                 events.append(event)
                 self.high_multiplier_reached = True
                 print(f"[HIGH_MULTIPLIER] Reached {multiplier}x")
-
-        # Crash detection
-        if multiplier is not None and multiplier <= self.crash_threshold and self.state.is_running:
-            self.state.is_running = False
-            self.state.crashed = True
-            round_duration = timestamp - self.state.round_start_time if self.state.round_start_time else 0
-            self.last_crash_multiplier = multiplier
-
-            event = GameEvent(
-                event_type='CRASH',
-                timestamp=timestamp,
-                multiplier=multiplier,
-                status=status,
-                details={
-                    'max_multiplier': self.state.max_multiplier,
-                    'round_duration': round_duration,
-                    'round_end_time': timestamp
-                }
-            )
-            events.append(event)
-            self.high_multiplier_reached = False
-            print(f"[CRASH] Game crashed at {self.state.max_multiplier}x. Duration: {round_duration:.2f}s")
-
-            # Save round to history
-            self.round_number += 1
-            round_summary = RoundSummary(
-                round_number=self.round_number,
-                start_time=self.state.round_start_time,
-                end_time=timestamp,
-                duration=round_duration,
-                max_multiplier=self.state.max_multiplier,
-                crash_multiplier=multiplier,
-                status='CRASHED',
-                events_count=len(self.round_events)
-            )
-            self.round_history.append(round_summary)
 
         # Update state
         self.state.multiplier = multiplier

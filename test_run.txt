@@ -1,0 +1,445 @@
+================================================================================
+MULTIPLIER READER
+================================================================================
+
+[13:43:14] INFO: Started
+[13:43:14] INFO: Region: (117, 1014) to (292, 1066)
+[13:43:14] INFO: Update interval: 0.5s
+[13:43:14] INFO: Press Ctrl+C to stop
+
+[13:43:14] STATUS: WAITING for first round...
+[13:43:14] ROUND: [START] ROUND 1 STARTED
+[13:43:14] STATUS: Multiplier: 3.47x | Max: 3.47x | Time: 0.0s | Round: 0
+[13:43:15] STATUS: Multiplier: 3.67x | Max: 3.67x | Time: 0.7s | Round: 0
+[13:43:15] STATUS: Multiplier: 3.89x | Max: 3.89x | Time: 1.4s | Round: 0
+[13:43:16] STATUS: Multiplier: 4.09x | Max: 4.09x | Time: 2.1s | Round: 0
+[13:43:17] STATUS: Multiplier: 4.38x | Max: 4.38x | Time: 2.8s | Round: 0
+[13:43:18] STATUS: Multiplier: 4.64x | Max: 4.64x | Time: 3.5s | Round: 0
+[13:43:18] STATUS: Multiplier: 4.92x | Max: 4.92x | Time: 4.2s | Round: 0
+[13:43:19] STATUS: Multiplier: 5.21x | Max: 5.21x | Time: 4.9s | Round: 0
+[13:43:20] STATUS: Multiplier: 5.44x | Max: 5.44x | Time: 5.7s | Round: 0
+[13:43:20] STATUS: Multiplier: 5.46x | Max: 5.46x | Time: 6.4s | Round: 0
+
+[13:43:21] EVENT: [CRASH] Reached 5.46x in 7.12s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+====================================================================================================
+
+Statistics (All 1 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 5.46x
+  Average Duration: 7.12s
+  Total Crashes: 1
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:43:21] INFO: Waiting for next round...
+[13:43:28] ROUND: [START] ROUND 2 STARTED
+[13:43:28] STATUS: Multiplier: 1.01x | Max: 1.01x | Time: 0.0s | Round: 1
+[13:43:28] STATUS: Multiplier: 1.07x | Max: 1.07x | Time: 0.7s | Round: 1
+[13:43:29] STATUS: Multiplier: 1.13x | Max: 1.13x | Time: 1.4s | Round: 1
+[13:43:30] STATUS: Multiplier: 1.20x | Max: 1.20x | Time: 2.2s | Round: 1
+[13:43:31] STATUS: Multiplier: 1.29x | Max: 1.29x | Time: 2.9s | Round: 1
+[13:43:31] STATUS: Multiplier: 1.36x | Max: 1.36x | Time: 3.6s | Round: 1
+[13:43:32] STATUS: Multiplier: 1.44x | Max: 1.44x | Time: 4.3s | Round: 1
+[13:43:33] STATUS: Multiplier: 1.54x | Max: 1.54x | Time: 5.1s | Round: 1
+[13:43:33] STATUS: Multiplier: 1.64x | Max: 1.64x | Time: 5.8s | Round: 1
+[13:43:34] STATUS: Multiplier: 1.74x | Max: 1.74x | Time: 6.5s | Round: 1
+[13:43:35] STATUS: Multiplier: 1.82x | Max: 1.82x | Time: 7.2s | Round: 1
+[13:43:36] STATUS: Multiplier: 1.95x | Max: 1.95x | Time: 7.9s | Round: 1
+[13:43:36] STATUS: Multiplier: 2.07x | Max: 2.07x | Time: 8.7s | Round: 1
+[13:43:37] STATUS: Multiplier: 2.21x | Max: 2.21x | Time: 9.4s | Round: 1
+[13:43:38] STATUS: Multiplier: 2.34x | Max: 2.34x | Time: 10.1s | Round: 1
+[13:43:38] STATUS: Multiplier: 2.48x | Max: 2.48x | Time: 10.8s | Round: 1
+[13:43:39] STATUS: Multiplier: 2.63x | Max: 2.63x | Time: 11.6s | Round: 1
+[13:43:40] STATUS: Multiplier: 2.81x | Max: 2.81x | Time: 12.3s | Round: 1
+[13:43:41] STATUS: Multiplier: 2.98x | Max: 2.98x | Time: 13.0s | Round: 1
+[13:43:41] STATUS: Multiplier: 3.16x | Max: 3.16x | Time: 13.8s | Round: 1
+[13:43:42] STATUS: Multiplier: 3.35x | Max: 3.35x | Time: 14.5s | Round: 1
+[13:43:43] STATUS: Multiplier: 3.58x | Max: 3.58x | Time: 15.2s | Round: 1
+[13:43:44] STATUS: Multiplier: 3.73x | Max: 3.73x | Time: 16.0s | Round: 1
+[13:43:44] STATUS: Multiplier: 3.73x | Max: 3.73x | Time: 16.7s | Round: 1
+
+[13:43:45] EVENT: [CRASH] Reached 3.73x in 17.40s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+====================================================================================================
+
+Statistics (All 2 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 4.59x
+  Average Duration: 12.26s
+  Total Crashes: 2
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:43:45] INFO: Waiting for next round...
+[13:43:52] ROUND: [START] ROUND 3 STARTED
+[13:43:52] STATUS: Multiplier: 1.01x | Max: 1.01x | Time: 0.0s | Round: 2
+[13:43:52] STATUS: Multiplier: 1.07x | Max: 1.07x | Time: 0.8s | Round: 2
+[13:43:53] STATUS: Multiplier: 1.14x | Max: 1.14x | Time: 1.5s | Round: 2
+[13:43:54] STATUS: Multiplier: 1.21x | Max: 1.21x | Time: 2.2s | Round: 2
+[13:43:54] STATUS: Multiplier: 1.29x | Max: 1.29x | Time: 2.9s | Round: 2
+[13:43:55] STATUS: Multiplier: 1.37x | Max: 1.37x | Time: 3.7s | Round: 2
+[13:43:56] STATUS: Multiplier: 1.46x | Max: 1.46x | Time: 4.4s | Round: 2
+[13:43:57] STATUS: Multiplier: 1.54x | Max: 1.54x | Time: 5.1s | Round: 2
+[13:43:57] STATUS: Multiplier: 1.64x | Max: 1.64x | Time: 5.8s | Round: 2
+[13:43:58] STATUS: Multiplier: 1.74x | Max: 1.74x | Time: 6.5s | Round: 2
+[13:43:59] STATUS: Multiplier: 1.86x | Max: 1.86x | Time: 7.3s | Round: 2
+[13:44:00] STATUS: Multiplier: 1.95x | Max: 1.95x | Time: 8.0s | Round: 2
+[13:44:00] STATUS: Multiplier: 2.07x | Max: 2.07x | Time: 8.7s | Round: 2
+[13:44:01] STATUS: Multiplier: 2.21x | Max: 2.21x | Time: 9.4s | Round: 2
+[13:44:02] STATUS: Multiplier: 2.34x | Max: 2.34x | Time: 10.1s | Round: 2
+[13:44:02] STATUS: Multiplier: 2.35x | Max: 2.35x | Time: 10.9s | Round: 2
+
+[13:44:03] EVENT: [CRASH] Reached 2.35x in 11.58s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+3       13:43:52    13:44:03    11.58s      2.35x       2.35x       CRASHED   16      
+====================================================================================================
+
+Statistics (All 3 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 3.85x
+  Average Duration: 12.03s
+  Total Crashes: 3
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:44:03] INFO: Waiting for next round...
+[13:44:10] ROUND: [START] ROUND 4 STARTED
+[13:44:10] STATUS: Multiplier: 1.04x | Max: 1.04x | Time: 0.0s | Round: 3
+[13:44:11] STATUS: Multiplier: 1.11x | Max: 1.11x | Time: 0.7s | Round: 3
+[13:44:12] STATUS: Multiplier: 1.16x | Max: 1.16x | Time: 1.5s | Round: 3
+[13:44:13] STATUS: Multiplier: 1.24x | Max: 1.24x | Time: 2.2s | Round: 3
+[13:44:13] STATUS: Multiplier: 1.32x | Max: 1.32x | Time: 2.9s | Round: 3
+[13:44:14] STATUS: Multiplier: 1.41x | Max: 1.41x | Time: 3.6s | Round: 3
+[13:44:15] STATUS: Multiplier: 1.49x | Max: 1.49x | Time: 4.3s | Round: 3
+[13:44:15] STATUS: Multiplier: 1.58x | Max: 1.58x | Time: 5.1s | Round: 3
+[13:44:16] STATUS: Multiplier: 1.68x | Max: 1.68x | Time: 5.8s | Round: 3
+[13:44:17] STATUS: Multiplier: 1.80x | Max: 1.80x | Time: 6.6s | Round: 3
+[13:44:18] STATUS: Multiplier: 1.90x | Max: 1.90x | Time: 7.3s | Round: 3
+[13:44:18] STATUS: Multiplier: 2.02x | Max: 2.02x | Time: 8.0s | Round: 3
+[13:44:19] STATUS: Multiplier: 2.14x | Max: 2.14x | Time: 8.7s | Round: 3
+[13:44:20] STATUS: Multiplier: 2.27x | Max: 2.27x | Time: 9.4s | Round: 3
+[13:44:21] STATUS: Multiplier: 2.42x | Max: 2.42x | Time: 10.1s | Round: 3
+[13:44:21] STATUS: Multiplier: 2.49x | Max: 2.49x | Time: 10.9s | Round: 3
+
+[13:44:22] EVENT: [CRASH] Reached 2.49x in 11.63s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+3       13:43:52    13:44:03    11.58s      2.35x       2.35x       CRASHED   16      
+4       13:44:10    13:44:22    11.63s      2.49x       2.49x       CRASHED   16      
+====================================================================================================
+
+Statistics (All 4 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 3.51x
+  Average Duration: 11.93s
+  Total Crashes: 4
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:44:22] INFO: Waiting for next round...
+[13:44:29] ROUND: [START] ROUND 5 STARTED
+[13:44:29] STATUS: Multiplier: 1.02x | Max: 1.02x | Time: 0.0s | Round: 4
+[13:44:30] STATUS: Multiplier: 1.09x | Max: 1.09x | Time: 0.8s | Round: 4
+[13:44:31] STATUS: Multiplier: 1.15x | Max: 1.15x | Time: 1.5s | Round: 4
+[13:44:31] STATUS: Multiplier: 1.23x | Max: 1.23x | Time: 2.2s | Round: 4
+[13:44:32] STATUS: Multiplier: 1.30x | Max: 1.30x | Time: 3.1s | Round: 4
+[13:44:33] STATUS: Multiplier: 1.41x | Max: 1.41x | Time: 3.9s | Round: 4
+[13:44:34] STATUS: Multiplier: 1.49x | Max: 1.49x | Time: 4.6s | Round: 4
+[13:44:34] STATUS: Multiplier: 1.58x | Max: 1.58x | Time: 5.2s | Round: 4
+[13:44:35] STATUS: Multiplier: 1.68x | Max: 1.68x | Time: 6.0s | Round: 4
+[13:44:36] STATUS: Multiplier: 1.78x | Max: 1.78x | Time: 6.7s | Round: 4
+[13:44:37] STATUS: Multiplier: 1.89x | Max: 1.89x | Time: 7.4s | Round: 4
+[13:44:37] STATUS: Multiplier: 2.02x | Max: 2.02x | Time: 8.1s | Round: 4
+[13:44:38] STATUS: Multiplier: 2.14x | Max: 2.14x | Time: 8.9s | Round: 4
+[13:44:39] STATUS: Multiplier: 2.29x | Max: 2.29x | Time: 9.6s | Round: 4
+[13:44:40] STATUS: Multiplier: 2.42x | Max: 2.42x | Time: 10.4s | Round: 4
+[13:44:40] STATUS: Multiplier: 2.57x | Max: 2.57x | Time: 11.1s | Round: 4
+[13:44:41] STATUS: Multiplier: 2.74x | Max: 2.74x | Time: 11.8s | Round: 4
+[13:44:42] STATUS: Multiplier: 2.91x | Max: 2.91x | Time: 12.6s | Round: 4
+[13:44:42] STATUS: Multiplier: 3.08x | Max: 3.08x | Time: 13.3s | Round: 4
+[13:44:43] STATUS: Multiplier: 3.25x | Max: 3.25x | Time: 14.0s | Round: 4
+[13:44:44] STATUS: Multiplier: 3.25x | Max: 3.25x | Time: 14.7s | Round: 4
+
+[13:44:45] EVENT: [CRASH] Reached 3.25x in 15.46s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+3       13:43:52    13:44:03    11.58s      2.35x       2.35x       CRASHED   16      
+4       13:44:10    13:44:22    11.63s      2.49x       2.49x       CRASHED   16      
+5       13:44:29    13:44:45    15.46s      3.25x       3.25x       CRASHED   20      
+====================================================================================================
+
+Statistics (All 5 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 3.46x
+  Average Duration: 12.64s
+  Total Crashes: 5
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:44:45] INFO: Waiting for next round...
+[13:44:52] ROUND: [START] ROUND 6 STARTED
+[13:44:52] STATUS: Multiplier: 1.06x | Max: 1.06x | Time: 0.0s | Round: 5
+[13:44:53] STATUS: Multiplier: 1.13x | Max: 1.13x | Time: 0.7s | Round: 5
+[13:44:53] STATUS: Multiplier: 1.19x | Max: 1.19x | Time: 1.4s | Round: 5
+[13:44:54] STATUS: Multiplier: 1.26x | Max: 1.26x | Time: 2.2s | Round: 5
+[13:44:55] STATUS: Multiplier: 1.35x | Max: 1.35x | Time: 2.9s | Round: 5
+[13:44:56] STATUS: Multiplier: 1.43x | Max: 1.43x | Time: 3.6s | Round: 5
+[13:44:56] STATUS: Multiplier: 1.52x | Max: 1.52x | Time: 4.3s | Round: 5
+[13:44:57] STATUS: Multiplier: 1.54x | Max: 1.54x | Time: 5.1s | Round: 5
+
+[13:44:58] EVENT: [CRASH] Reached 1.54x in 5.78s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+3       13:43:52    13:44:03    11.58s      2.35x       2.35x       CRASHED   16      
+4       13:44:10    13:44:22    11.63s      2.49x       2.49x       CRASHED   16      
+5       13:44:29    13:44:45    15.46s      3.25x       3.25x       CRASHED   20      
+6       13:44:52    13:44:58    5.78s       1.54x       1.54x       CRASHED   8       
+====================================================================================================
+
+Statistics (All 6 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 3.14x
+  Average Duration: 11.50s
+  Total Crashes: 6
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:44:58] INFO: Waiting for next round...
+[13:45:05] ROUND: [START] ROUND 7 STARTED
+[13:45:05] STATUS: Multiplier: 1.04x | Max: 1.04x | Time: 0.0s | Round: 6
+[13:45:06] STATUS: Multiplier: 1.11x | Max: 1.11x | Time: 0.7s | Round: 6
+[13:45:06] STATUS: Multiplier: 1.15x | Max: 1.15x | Time: 1.4s | Round: 6
+[13:45:07] STATUS: Multiplier: 1.24x | Max: 1.24x | Time: 2.1s | Round: 6
+[13:45:08] STATUS: Multiplier: 1.32x | Max: 1.32x | Time: 2.9s | Round: 6
+[13:45:08] STATUS: Multiplier: 1.40x | Max: 1.40x | Time: 3.6s | Round: 6
+[13:45:09] STATUS: Multiplier: 1.48x | Max: 1.48x | Time: 4.3s | Round: 6
+[13:45:10] STATUS: Multiplier: 1.57x | Max: 1.57x | Time: 5.0s | Round: 6
+[13:45:11] STATUS: Multiplier: 1.66x | Max: 1.66x | Time: 5.7s | Round: 6
+[13:45:11] STATUS: Multiplier: 1.66x | Max: 1.66x | Time: 6.5s | Round: 6
+
+[13:45:12] EVENT: [CRASH] Reached 1.66x in 7.20s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+3       13:43:52    13:44:03    11.58s      2.35x       2.35x       CRASHED   16      
+4       13:44:10    13:44:22    11.63s      2.49x       2.49x       CRASHED   16      
+5       13:44:29    13:44:45    15.46s      3.25x       3.25x       CRASHED   20      
+6       13:44:52    13:44:58    5.78s       1.54x       1.54x       CRASHED   8       
+7       13:45:05    13:45:12    7.20s       1.66x       1.66x       CRASHED   9       
+====================================================================================================
+
+Statistics (All 7 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 2.93x
+  Average Duration: 10.88s
+  Total Crashes: 7
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:45:12] INFO: Waiting for next round...
+[13:45:19] ROUND: [START] ROUND 8 STARTED
+[13:45:19] STATUS: Multiplier: 1.03x | Max: 1.03x | Time: 0.0s | Round: 7
+
+[13:45:20] EVENT: [CRASH] Reached 1.03x in 0.72s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+3       13:43:52    13:44:03    11.58s      2.35x       2.35x       CRASHED   16      
+4       13:44:10    13:44:22    11.63s      2.49x       2.49x       CRASHED   16      
+5       13:44:29    13:44:45    15.46s      3.25x       3.25x       CRASHED   20      
+6       13:44:52    13:44:58    5.78s       1.54x       1.54x       CRASHED   8       
+7       13:45:05    13:45:12    7.20s       1.66x       1.66x       CRASHED   9       
+8       13:45:19    13:45:20    0.72s       1.03x       1.03x       CRASHED   1       
+====================================================================================================
+
+Statistics (All 8 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 2.69x
+  Average Duration: 9.61s
+  Total Crashes: 8
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:45:20] INFO: Waiting for next round...
+[13:45:27] ROUND: [START] ROUND 9 STARTED
+[13:45:27] STATUS: Multiplier: 1.02x | Max: 1.02x | Time: 0.0s | Round: 8
+[13:45:28] STATUS: Multiplier: 1.07x | Max: 1.07x | Time: 0.7s | Round: 8
+[13:45:29] STATUS: Multiplier: 1.15x | Max: 1.15x | Time: 1.5s | Round: 8
+[13:45:29] STATUS: Multiplier: 1.22x | Max: 1.22x | Time: 2.2s | Round: 8
+[13:45:30] STATUS: Multiplier: 1.23x | Max: 1.23x | Time: 2.9s | Round: 8
+
+[13:45:31] EVENT: [CRASH] Reached 1.23x in 3.62s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+3       13:43:52    13:44:03    11.58s      2.35x       2.35x       CRASHED   16      
+4       13:44:10    13:44:22    11.63s      2.49x       2.49x       CRASHED   16      
+5       13:44:29    13:44:45    15.46s      3.25x       3.25x       CRASHED   20      
+6       13:44:52    13:44:58    5.78s       1.54x       1.54x       CRASHED   8       
+7       13:45:05    13:45:12    7.20s       1.66x       1.66x       CRASHED   9       
+8       13:45:19    13:45:20    0.72s       1.03x       1.03x       CRASHED   1       
+9       13:45:27    13:45:31    3.62s       1.23x       1.23x       CRASHED   5       
+====================================================================================================
+
+Statistics (All 9 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 2.53x
+  Average Duration: 8.95s
+  Total Crashes: 9
+  Crash Rate: 100.0%
+====================================================================================================
+
+[13:45:31] INFO: Waiting for next round...
+[13:45:38] ROUND: [START] ROUND 10 STARTED
+[13:45:38] STATUS: Multiplier: 1.05x | Max: 1.05x | Time: 0.0s | Round: 9
+[13:45:39] STATUS: Multiplier: 1.12x | Max: 1.12x | Time: 0.7s | Round: 9
+[13:45:40] STATUS: Multiplier: 1.19x | Max: 1.19x | Time: 1.4s | Round: 9
+[13:45:40] STATUS: Multiplier: 1.26x | Max: 1.26x | Time: 2.1s | Round: 9
+[13:45:41] STATUS: Multiplier: 1.34x | Max: 1.34x | Time: 2.9s | Round: 9
+[13:45:42] STATUS: Multiplier: 1.43x | Max: 1.43x | Time: 3.6s | Round: 9
+[13:45:43] STATUS: Multiplier: 1.50x | Max: 1.50x | Time: 4.3s | Round: 9
+[13:45:43] STATUS: Multiplier: 1.60x | Max: 1.60x | Time: 5.1s | Round: 9
+[13:45:44] STATUS: Multiplier: 1.70x | Max: 1.70x | Time: 5.8s | Round: 9
+[13:45:45] STATUS: Multiplier: 1.82x | Max: 1.82x | Time: 6.5s | Round: 9
+[13:45:45] STATUS: Multiplier: 1.85x | Max: 1.85x | Time: 7.2s | Round: 9
+
+[13:45:46] EVENT: [CRASH] Reached 1.85x in 7.98s
+
+
+================================================================================
+ROUND ENDED
+================================================================================
+
+
+====================================================================================================
+ROUND HISTORY
+====================================================================================================
+Round   Start Time  End Time    Duration    Max Mult    Crash At    Status    Events  
+----------------------------------------------------------------------------------------------------
+1       13:43:14    13:43:21    7.12s       5.46x       5.46x       CRASHED   10      
+2       13:43:28    13:43:45    17.40s      3.73x       3.73x       CRASHED   23      
+3       13:43:52    13:44:03    11.58s      2.35x       2.35x       CRASHED   16      
+4       13:44:10    13:44:22    11.63s      2.49x       2.49x       CRASHED   16      
+5       13:44:29    13:44:45    15.46s      3.25x       3.25x       CRASHED   20      
+6       13:44:52    13:44:58    5.78s       1.54x       1.54x       CRASHED   8       
+7       13:45:05    13:45:12    7.20s       1.66x       1.66x       CRASHED   9       
+8       13:45:19    13:45:20    0.72s       1.03x       1.03x       CRASHED   1       
+9       13:45:27    13:45:31    3.62s       1.23x       1.23x       CRASHED   5       
+10      13:45:38    13:45:46    7.98s       1.85x       1.85x       CRASHED   11      
+====================================================================================================
+
+Statistics (All 10 rounds):
+  Max Multiplier Ever: 5.46x
+  Average Max Multiplier: 2.46x
+  Average Duration: 8.85s
+  Total Crashes: 10
+  Crash Rate: 100.0%
+====================================================================================================

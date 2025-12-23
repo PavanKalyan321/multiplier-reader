@@ -82,7 +82,14 @@ class MultiplierReaderApp:
 
         if result['multiplier'] is None:
             self.stats['failed_reads'] += 1
-            # Detect if round just ended (read failed after successful round)
+            # Pass None to game_tracker to trigger crash detection
+            events = self.game_tracker.update(None, 'UNKNOWN')
+
+            # Log crash event if generated
+            for event in events:
+                self.log_event(event)
+
+            # Check if round was just completed
             self.check_and_log_round_completion()
             return
 

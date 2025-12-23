@@ -1,0 +1,115 @@
+================================================================================
+MULTIPLIER READER
+================================================================================
+
+[13:31:50] INFO: Started
+[13:31:50] INFO: Region: (117, 1014) to (292, 1066)
+[13:31:50] INFO: Update interval: 0.5s
+[13:31:50] INFO: Press Ctrl+C to stop
+
+[13:31:50] STATUS: WAITING for first round...
+[HIGH_MULTIPLIER] Reached 10.0x
+[13:32:50] EVENT: [HIGH] MULTIPLIER: 10.00x
+[GAME_START] Round started at 1766477572.101647
+[13:42:52] ROUND: [START] ROUND 1 STARTED
+[13:42:52] STATUS: Multiplier: 1.00x | Max: 1.00x | Time: 0.0s | Round: 0
+[13:42:59] STATUS: Multiplier: 1.02x | Max: 1.02x | Time: 7.8s | Round: 0
+[13:43:00] STATUS: Multiplier: 1.09x | Max: 1.09x | Time: 8.5s | Round: 0
+[13:43:01] STATUS: Multiplier: 1.15x | Max: 1.15x | Time: 9.2s | Round: 0
+[13:43:02] STATUS: Multiplier: 1.22x | Max: 1.22x | Time: 9.9s | Round: 0
+[13:43:02] STATUS: Multiplier: 1.30x | Max: 1.30x | Time: 10.7s | Round: 0
+[13:43:03] STATUS: Multiplier: 1.39x | Max: 1.39x | Time: 11.4s | Round: 0
+[13:43:04] STATUS: Multiplier: 1.47x | Max: 1.47x | Time: 12.2s | Round: 0
+[13:43:05] STATUS: Multiplier: 1.57x | Max: 1.57x | Time: 12.9s | Round: 0
+[13:43:05] STATUS: Multiplier: 1.66x | Max: 1.66x | Time: 13.6s | Round: 0
+[13:43:06] STATUS: Multiplier: 1.76x | Max: 1.76x | Time: 14.4s | Round: 0
+[13:43:07] STATUS: Multiplier: 1.87x | Max: 1.87x | Time: 15.1s | Round: 0
+[13:43:07] STATUS: Multiplier: 1.98x | Max: 1.98x | Time: 15.8s | Round: 0
+[13:43:08] STATUS: Multiplier: 2.12x | Max: 2.12x | Time: 16.5s | Round: 0
+[13:43:09] STATUS: Multiplier: 2.23x | Max: 2.23x | Time: 17.2s | Round: 0
+[13:43:10] STATUS: Multiplier: 2.38x | Max: 2.38x | Time: 17.9s | Round: 0
+[13:43:10] STATUS: Multiplier: 2.53x | Max: 2.53x | Time: 18.7s | Round: 0
+[13:43:11] STATUS: Multiplier: 2.70x | Max: 2.70x | Time: 19.4s | Round: 0
+[13:43:12] STATUS: Multiplier: 2.86x | Max: 2.86x | Time: 20.1s | Round: 0
+[13:43:12] STATUS: Multiplier: 3.03x | Max: 3.03x | Time: 20.8s | Round: 0
+[13:43:13] STATUS: Multiplier: 3.22x | Max: 3.22x | Time: 21.5s | Round: 0
+[13:43:14] STATUS: Multiplier: 3.41x | Max: 3.41x | Time: 22.3s | Round: 0
+[13:43:15] STATUS: Multiplier: 3.61x | Max: 3.61x | Time: 23.0s | Round: 0
+[13:43:15] STATUS: Multiplier: 3.86x | Max: 3.86x | Time: 23.7s | Round: 0
+[13:43:16] STATUS: Multiplier: 4.09x | Max: 4.09x | Time: 24.4s | Round: 0
+[13:43:17] STATUS: Multiplier: 4.34x | Max: 4.34x | Time: 25.2s | Round: 0
+[13:43:17] STATUS: Multiplier: 4.64x | Max: 4.64x | Time: 25.9s | Round: 0
+[13:43:18] STATUS: Multiplier: 4.92x | Max: 4.92x | Time: 26.6s | Round: 0
+[13:43:19] STATUS: Multiplier: 5.21x | Max: 5.21x | Time: 27.3s | Round: 0
+[13:43:20] STATUS: Multiplier: 5.46x | Max: 5.46x | Time: 28.1s | Round: 0
+[13:43:20] STATUS: Multiplier: 5.46x | Max: 5.46x | Time: 28.8s | Round: 0
+[13:43:28] STATUS: Multiplier: 1.06x | Max: 5.46x | Time: 36.7s | Round: 0
+[13:43:29] STATUS: Multiplier: 1.13x | Max: 5.46x | Time: 37.5s | Round: 0
+[13:43:30] STATUS: Multiplier: 1.20x | Max: 5.46x | Time: 38.2s | Round: 0
+[13:43:31] STATUS: Multiplier: 1.28x | Max: 5.46x | Time: 38.9s | Round: 0
+[13:43:31] STATUS: Multiplier: 1.36x | Max: 5.46x | Time: 39.6s | Round: 0
+[13:43:32] STATUS: Multiplier: 1.44x | Max: 5.46x | Time: 40.4s | Round: 0
+[13:43:33] STATUS: Multiplier: 1.53x | Max: 5.46x | Time: 41.1s | Round: 0
+[13:43:33] STATUS: Multiplier: 1.62x | Max: 5.46x | Time: 41.8s | Round: 0
+[13:43:34] STATUS: Multiplier: 1.72x | Max: 5.46x | Time: 42.5s | Round: 0
+[13:43:35] STATUS: Multiplier: 1.82x | Max: 5.46x | Time: 43.3s | Round: 0
+[13:43:36] STATUS: Multiplier: 1.95x | Max: 5.46x | Time: 44.0s | Round: 0
+[13:43:36] STATUS: Multiplier: 2.07x | Max: 5.46x | Time: 44.7s | Round: 0
+[13:43:37] STATUS: Multiplier: 2.19x | Max: 5.46x | Time: 45.4s | Round: 0
+[13:43:38] STATUS: Multiplier: 2.34x | Max: 5.46x | Time: 46.1s | Round: 0
+[13:43:38] STATUS: Multiplier: 2.48x | Max: 5.46x | Time: 46.9s | Round: 0
+[13:43:39] STATUS: Multiplier: 2.63x | Max: 5.46x | Time: 47.6s | Round: 0
+[13:43:40] STATUS: Multiplier: 2.79x | Max: 5.46x | Time: 48.3s | Round: 0
+[13:43:41] STATUS: Multiplier: 2.98x | Max: 5.46x | Time: 49.0s | Round: 0
+[13:43:41] STATUS: Multiplier: 3.14x | Max: 5.46x | Time: 49.8s | Round: 0
+[13:43:42] STATUS: Multiplier: 3.35x | Max: 5.46x | Time: 50.5s | Round: 0
+[13:43:43] STATUS: Multiplier: 3.58x | Max: 5.46x | Time: 51.2s | Round: 0
+[13:43:44] STATUS: Multiplier: 3.73x | Max: 5.46x | Time: 52.0s | Round: 0
+[13:43:44] STATUS: Multiplier: 3.73x | Max: 5.46x | Time: 52.7s | Round: 0
+[13:43:52] STATUS: Multiplier: 1.01x | Max: 5.46x | Time: 59.9s | Round: 0
+[13:43:52] STATUS: Multiplier: 1.07x | Max: 5.46x | Time: 60.7s | Round: 0
+[13:43:53] STATUS: Multiplier: 1.14x | Max: 5.46x | Time: 61.4s | Round: 0
+[13:43:54] STATUS: Multiplier: 1.21x | Max: 5.46x | Time: 62.1s | Round: 0
+[13:43:54] STATUS: Multiplier: 1.29x | Max: 5.46x | Time: 62.9s | Round: 0
+[13:43:55] STATUS: Multiplier: 1.36x | Max: 5.46x | Time: 63.6s | Round: 0
+[13:43:56] STATUS: Multiplier: 1.44x | Max: 5.46x | Time: 64.3s | Round: 0
+[13:43:57] STATUS: Multiplier: 1.54x | Max: 5.46x | Time: 65.0s | Round: 0
+[13:43:57] STATUS: Multiplier: 1.64x | Max: 5.46x | Time: 65.7s | Round: 0
+[13:43:58] STATUS: Multiplier: 1.74x | Max: 5.46x | Time: 66.4s | Round: 0
+[13:43:59] STATUS: Multiplier: 1.84x | Max: 5.46x | Time: 67.2s | Round: 0
+[13:43:59] STATUS: Multiplier: 1.95x | Max: 5.46x | Time: 67.9s | Round: 0
+[13:44:00] STATUS: Multiplier: 2.07x | Max: 5.46x | Time: 68.6s | Round: 0
+[13:44:01] STATUS: Multiplier: 2.21x | Max: 5.46x | Time: 69.3s | Round: 0
+[13:44:02] STATUS: Multiplier: 2.34x | Max: 5.46x | Time: 70.1s | Round: 0
+[13:44:02] STATUS: Multiplier: 2.22x | Max: 5.46x | Time: 70.8s | Round: 0
+[13:44:10] STATUS: Multiplier: 1.04x | Max: 5.46x | Time: 78.7s | Round: 0
+[13:44:11] STATUS: Multiplier: 1.09x | Max: 5.46x | Time: 79.5s | Round: 0
+[13:44:12] STATUS: Multiplier: 1.16x | Max: 5.46x | Time: 80.2s | Round: 0
+[13:44:13] STATUS: Multiplier: 1.24x | Max: 5.46x | Time: 80.9s | Round: 0
+[13:44:13] STATUS: Multiplier: 1.32x | Max: 5.46x | Time: 81.6s | Round: 0
+[13:44:14] STATUS: Multiplier: 1.40x | Max: 5.46x | Time: 82.4s | Round: 0
+[13:44:15] STATUS: Multiplier: 1.48x | Max: 5.46x | Time: 83.1s | Round: 0
+[13:44:15] STATUS: Multiplier: 1.58x | Max: 5.46x | Time: 83.8s | Round: 0
+[13:44:16] STATUS: Multiplier: 1.68x | Max: 5.46x | Time: 84.6s | Round: 0
+[13:44:17] STATUS: Multiplier: 1.78x | Max: 5.46x | Time: 85.3s | Round: 0
+[13:44:18] STATUS: Multiplier: 1.90x | Max: 5.46x | Time: 86.0s | Round: 0
+[13:44:18] STATUS: Multiplier: 2.02x | Max: 5.46x | Time: 86.7s | Round: 0
+[13:44:19] STATUS: Multiplier: 2.14x | Max: 5.46x | Time: 87.5s | Round: 0
+[13:44:20] STATUS: Multiplier: 2.27x | Max: 5.46x | Time: 88.2s | Round: 0
+[13:44:21] STATUS: Multiplier: 2.42x | Max: 5.46x | Time: 88.9s | Round: 0
+[13:44:21] STATUS: Multiplier: 2.49x | Max: 5.46x | Time: 89.6s | Round: 0
+[13:44:29] STATUS: Multiplier: 1.02x | Max: 5.46x | Time: 97.6s | Round: 0
+[13:44:30] STATUS: Multiplier: 1.09x | Max: 5.46x | Time: 98.4s | Round: 0
+[13:44:31] STATUS: Multiplier: 1.15x | Max: 5.46x | Time: 99.1s | Round: 0
+[13:44:31] STATUS: Multiplier: 1.22x | Max: 5.46x | Time: 99.8s | Round: 0
+[13:44:32] STATUS: Multiplier: 1.30x | Max: 5.46x | Time: 100.6s | Round: 0
+[13:44:33] STATUS: Multiplier: 1.40x | Max: 5.46x | Time: 101.4s | Round: 0
+[13:44:34] STATUS: Multiplier: 1.49x | Max: 5.46x | Time: 102.1s | Round: 0
+[13:44:34] STATUS: Multiplier: 1.58x | Max: 5.46x | Time: 102.8s | Round: 0
+[13:44:35] STATUS: Multiplier: 1.68x | Max: 5.46x | Time: 103.5s | Round: 0
+[13:44:36] STATUS: Multiplier: 1.76x | Max: 5.46x | Time: 104.3s | Round: 0
+[13:44:37] STATUS: Multiplier: 1.89x | Max: 5.46x | Time: 105.0s | Round: 0
+[13:44:37] STATUS: Multiplier: 2.02x | Max: 5.46x | Time: 105.8s | Round: 0
+[13:44:38] STATUS: Multiplier: 2.14x | Max: 5.46x | Time: 106.5s | Round: 0
+[13:44:39] STATUS: Multiplier: 2.29x | Max: 5.46x | Time: 107.3s | Round: 0
+[13:44:40] STATUS: Multiplier: 2.42x | Max: 5.46x | Time: 108.0s | Round: 0
