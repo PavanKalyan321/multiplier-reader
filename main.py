@@ -8,6 +8,36 @@ from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
 from game_tracker import GameTracker
 
+
+class Colors:
+    """ANSI color codes for terminal"""
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+
+    # Status colors
+    GREEN = '\033[92m'   # Low multiplier (1x-3x)
+    YELLOW = '\033[93m'  # Medium (3x-7x)
+    RED = '\033[91m'     # High (7x-10x)
+    MAGENTA = '\033[95m' # Very high (10x+)
+
+    # Info colors
+    CYAN = '\033[96m'
+    GRAY = '\033[90m'
+    WHITE = '\033[97m'
+
+    @staticmethod
+    def get_multiplier_color(mult):
+        """Get color based on multiplier value"""
+        if mult >= 10:
+            return Colors.MAGENTA
+        elif mult >= 7:
+            return Colors.RED
+        elif mult >= 3:
+            return Colors.YELLOW
+        else:
+            return Colors.GREEN
+
+
 class MultiplierReaderApp:
     """Main application for monitoring game multiplier"""
 
@@ -22,6 +52,8 @@ class MultiplierReaderApp:
         self.is_round_running = False
         self.last_status_msg = ""
         self.status_printed = False
+        self.multiplier_history = []  # Track last N multipliers for sparkline
+        self.max_history = 10  # Keep last 10 values
         self.stats = {
             'total_updates': 0,
             'successful_reads': 0,
@@ -31,21 +63,45 @@ class MultiplierReaderApp:
             'start_time': datetime.now(),
         }
 
+    def generate_sparkline(self, values, width=10):
+        """Generate ASCII sparkline from values"""
+        if not values or len(values) < 2:
+            return ' ' * min(width, len(values) if values else 1)
+
+        # Normalize values to 0-7 range for block chars
+        min_val = min(values)
+        max_val = max(values)
+
+        if max_val == min_val:
+            return '-' * min(len(values), width)
+
+        # Use ASCII characters that work in most terminals
+        blocks = ['_', '.', '-', '=', '^', '*', '#', '@']
+
+        result = []
+        for val in values[-width:]:
+            normalized = int(((val - min_val) / (max_val - min_val)) * 7)
+            result.append(blocks[normalized])
+
+        return ''.join(result)
+
     def log_event(self, event):
-        """Log only critical game events (not every multiplier change)"""
+        """Log events with color coding"""
         if event.event_type == 'CRASH':
             max_mult = event.details.get('max_multiplier', 'N/A')
             duration = event.details.get('round_duration', 0)
             timestamp = datetime.now().strftime("%H:%M:%S")
-            print(f"\n[{timestamp}] EVENT: [CRASH] Reached {max_mult}x in {duration:.2f}s")
+            print(f"\n{Colors.GRAY}[{timestamp}]{Colors.RESET} {Colors.RED}{Colors.BOLD}[CRASH]{Colors.RESET} Reached {Colors.MAGENTA}{max_mult}x{Colors.RESET} in {duration:.2f}s")
             self.stats['crashes_detected'] += 1
         elif event.event_type == 'GAME_START':
             timestamp = datetime.now().strftime("%H:%M:%S")
-            print(f"[{timestamp}] ROUND: [START] ROUND {self.game_tracker.round_number + 1} STARTED")
+            round_num = self.game_tracker.round_number + 1
+            print(f"{Colors.GRAY}[{timestamp}]{Colors.RESET} {Colors.GREEN}{Colors.BOLD}[START]{Colors.RESET} ROUND {round_num} STARTED")
             self.is_round_running = True
+            self.multiplier_history = []  # Reset sparkline on new round
         elif event.event_type == 'HIGH_MULTIPLIER':
             timestamp = datetime.now().strftime("%H:%M:%S")
-            print(f"[{timestamp}] EVENT: [HIGH] MULTIPLIER: {event.multiplier:.2f}x")
+            print(f"{Colors.GRAY}[{timestamp}]{Colors.RESET} {Colors.MAGENTA}{Colors.BOLD}[HIGH]{Colors.RESET} MULTIPLIER: {Colors.MAGENTA}{event.multiplier:.2f}x{Colors.RESET}")
         # NOTE: MULTIPLIER_INCREASE events are NOT logged to avoid clutter - shown only in status line
 
     def check_and_log_round_completion(self):
@@ -116,21 +172,41 @@ class MultiplierReaderApp:
         self.print_status(multiplier, status, round_summary)
 
     def print_status(self, multiplier, status, round_summary):
-        """Print current status only when it changes"""
+        """Print enhanced status with colors and sparkline"""
         if round_summary['status'] == 'RUNNING' and 'current_multiplier' in round_summary:
             duration = round_summary['duration']
             max_mult = round_summary['max_multiplier']
             current = round_summary['current_multiplier']
             round_num = self.game_tracker.round_number
 
-            # Status without timestamp for comparison (only compare actual values, not time)
-            status_without_time = f"Multiplier: {current:.2f}x | Max: {max_mult:.2f}x | Time: {duration:.1f}s | Round: {round_num}"
+            # Track multiplier history for sparkline
+            self.multiplier_history.append(current)
+            if len(self.multiplier_history) > self.max_history:
+                self.multiplier_history.pop(0)
 
-            # Only print if values changed
-            if status_without_time != self.last_status_msg:
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                print(f"[{timestamp}] STATUS: {status_without_time}")
-                self.last_status_msg = status_without_time
+            # Generate sparkline
+            sparkline = self.generate_sparkline(self.multiplier_history)
+
+            # Get color based on multiplier
+            color = Colors.get_multiplier_color(current)
+
+            # Build status line with columns
+            # Format: [TIME] R:X | CURR: X.XXx | MAX: X.XXx | DUR: X.Xs | TREND: sparkline
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            status_line = (
+                f"{Colors.GRAY}[{timestamp}]{Colors.RESET} "
+                f"{Colors.CYAN}R:{round_num+1}{Colors.RESET} | "
+                f"{Colors.BOLD}CURR:{Colors.RESET} {color}{current:5.2f}x{Colors.RESET} | "
+                f"{Colors.BOLD}MAX:{Colors.RESET} {Colors.MAGENTA}{max_mult:5.2f}x{Colors.RESET} | "
+                f"{Colors.BOLD}DUR:{Colors.RESET} {duration:5.1f}s | "
+                f"{Colors.BOLD}TREND:{Colors.RESET} {color}{sparkline}{Colors.RESET}"
+            )
+
+            # Only print if values changed (compare without colors/timestamp)
+            status_key = f"{round_num}|{current:.2f}|{max_mult:.2f}|{duration:.1f}"
+            if status_key != self.last_status_msg:
+                print(status_line)
+                self.last_status_msg = status_key
                 self.status_printed = True
 
     def print_stats(self):
