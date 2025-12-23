@@ -7,6 +7,7 @@ from config import load_config, get_default_region
 from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
 from game_tracker import GameTracker
+from supabase_client import SupabaseLogger
 
 
 class Colors:
@@ -54,6 +55,13 @@ class MultiplierReaderApp:
         self.status_printed = False
         self.multiplier_history = []  # Track last N multipliers for sparkline
         self.max_history = 10  # Keep last 10 values
+
+        # Initialize Supabase logger
+        self.supabase = SupabaseLogger(
+            url='https://zofojiubrykbtmstfhzx.supabase.co',
+            key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s'
+        )
+
         self.stats = {
             'total_updates': 0,
             'successful_reads': 0,
@@ -61,6 +69,8 @@ class MultiplierReaderApp:
             'crashes_detected': 0,
             'max_multiplier_ever': 0,
             'start_time': datetime.now(),
+            'supabase_inserts': 0,      # Track successful inserts
+            'supabase_failures': 0,      # Track failed inserts
         }
 
     def generate_sparkline(self, values, width=10):
@@ -115,7 +125,7 @@ class MultiplierReaderApp:
             self.is_round_running = False
 
     def log_round_completion(self, round_summary):
-        """Log a completed round with formatted table"""
+        """Log a completed round with formatted table and save to Supabase"""
         print("\n")
         print("=" * 80)
         print("ROUND ENDED")
@@ -125,6 +135,20 @@ class MultiplierReaderApp:
         # Log the complete round history table
         history_table = self.game_tracker.format_round_history_table(limit=None)
         print(history_table)
+
+        # Insert round data into Supabase
+        round_end_time = datetime.fromtimestamp(round_summary.end_time)
+        success = self.supabase.insert_round(
+            round_number=round_summary.round_number,
+            multiplier=round_summary.max_multiplier,  # Use max_multiplier as final multiplier
+            timestamp=round_end_time
+        )
+
+        # Update stats
+        if success:
+            self.stats['supabase_inserts'] += 1
+        else:
+            self.stats['supabase_failures'] += 1
 
         print()
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -228,6 +252,11 @@ class MultiplierReaderApp:
         print(f"[{timestamp}] INFO: Success rate: {success_rate:.1f}%")
         print(f"[{timestamp}] INFO: Crashes detected: {self.stats['crashes_detected']}")
         print(f"[{timestamp}] INFO: Max multiplier ever: {self.stats['max_multiplier_ever']:.2f}x")
+
+        # Show Supabase statistics
+        if self.supabase.enabled:
+            print(f"[{timestamp}] INFO: Supabase inserts: {self.stats['supabase_inserts']}")
+            print(f"[{timestamp}] INFO: Supabase failures: {self.stats['supabase_failures']}")
 
         print()
 
