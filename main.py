@@ -8,6 +8,8 @@ from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
 from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
+from prediction_engine import PredictionEngine
+from analytics_client import AnalyticsClient
 
 
 class Colors:
@@ -62,6 +64,10 @@ class MultiplierReaderApp:
             key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s'
         )
 
+        # Initialize prediction engine and analytics client
+        self.prediction_engine = PredictionEngine()
+        self.analytics_client = AnalyticsClient(self.supabase.client if self.supabase.enabled else None)
+
         self.stats = {
             'total_updates': 0,
             'successful_reads': 0,
@@ -71,7 +77,24 @@ class MultiplierReaderApp:
             'start_time': datetime.now(),
             'supabase_inserts': 0,      # Track successful inserts
             'supabase_failures': 0,      # Track failed inserts
+            'predictions_generated': 0,  # Track predictions made
+            'signals_saved': 0,          # Track signals saved to analytics
         }
+
+    def _prepare_rounds_for_prediction(self):
+        """Convert game_tracker round history to format expected by prediction engine"""
+        if not self.game_tracker.round_history:
+            return []
+
+        rounds = []
+        for round_data in self.game_tracker.round_history:
+            rounds.append({
+                'multiplier': round_data.max_multiplier,
+                'timestamp': datetime.fromtimestamp(round_data.end_time).isoformat(),
+                'duration': round_data.duration,
+                'crash_detected': round_data.crash_detected
+            })
+        return rounds
 
     def generate_sparkline(self, values, width=10):
         """Generate ASCII sparkline from values"""
@@ -149,6 +172,58 @@ class MultiplierReaderApp:
             self.stats['supabase_inserts'] += 1
         else:
             self.stats['supabase_failures'] += 1
+
+        # Trigger prediction pipeline if we have enough historical data
+        if len(self.game_tracker.round_history) >= 5:
+            try:
+                # Prepare round history for prediction
+                rounds_data = self._prepare_rounds_for_prediction()
+
+                # Train prediction engine with historical data
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                print(f"[{timestamp}] INFO: Training prediction models with {len(rounds_data)} rounds...")
+                self.prediction_engine.train(rounds_data)
+
+                # Make prediction for next round
+                prediction = self.prediction_engine.predict(rounds_data)
+
+                if prediction:
+                    self.stats['predictions_generated'] += 1
+
+                    # Calculate volatility and momentum metrics
+                    volatility = self.prediction_engine.calculate_volatility(rounds_data)
+                    momentum = self.prediction_engine.calculate_momentum(rounds_data)
+
+                    # Get ensemble prediction
+                    ensemble_pred = prediction.get('ensemble', {})
+                    signal_type = self.analytics_client._get_pattern_type(
+                        prediction.get('features', {})
+                    )
+
+                    print(f"[{timestamp}] INFO: Prediction complete")
+                    print(f"[{timestamp}]   - Signal: {ensemble_pred.get('prediction', 'N/A')} (confidence: {ensemble_pred.get('confidence', 0):.2%})")
+                    print(f"[{timestamp}]   - Volatility: {volatility:.3f}, Momentum: {momentum:.3f}")
+
+                    # Insert signal into analytics_round_signals table
+                    signal_inserted = self.analytics_client.insert_signal(
+                        round_id=round_summary.round_number,
+                        round_number=round_summary.round_number,
+                        prediction=prediction,
+                        volatility=volatility,
+                        momentum=momentum,
+                        bot_id="multiplier-reader",
+                        game_name="aviator"
+                    )
+
+                    if signal_inserted:
+                        self.stats['signals_saved'] += 1
+                        print(f"[{timestamp}] INFO: Signal saved to analytics_round_signals")
+                    else:
+                        print(f"[{timestamp}] WARNING: Failed to save signal to analytics")
+
+            except Exception as e:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                print(f"[{timestamp}] WARNING: Prediction pipeline error: {e}")
 
         print()
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -257,6 +332,10 @@ class MultiplierReaderApp:
         if self.supabase.enabled:
             print(f"[{timestamp}] INFO: Supabase inserts: {self.stats['supabase_inserts']}")
             print(f"[{timestamp}] INFO: Supabase failures: {self.stats['supabase_failures']}")
+
+        # Show prediction statistics
+        print(f"[{timestamp}] INFO: Predictions generated: {self.stats['predictions_generated']}")
+        print(f"[{timestamp}] INFO: Signals saved: {self.stats['signals_saved']}")
 
         print()
 
