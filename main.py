@@ -10,6 +10,7 @@ from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
 from prediction_engine import PredictionEngine
 from analytics_client import AnalyticsClient
+from browser_refresh import BrowserRefresh
 
 
 class Colors:
@@ -68,6 +69,9 @@ class MultiplierReaderApp:
         self.prediction_engine = PredictionEngine()
         self.analytics_client = AnalyticsClient(self.supabase.client if self.supabase.enabled else None)
 
+        # Initialize browser refresh manager (refresh every 30 minutes)
+        self.browser_refresh = BrowserRefresh(refresh_interval_minutes=30)
+
         self.stats = {
             'total_updates': 0,
             'successful_reads': 0,
@@ -79,7 +83,25 @@ class MultiplierReaderApp:
             'supabase_failures': 0,      # Track failed inserts
             'predictions_generated': 0,  # Track predictions made
             'signals_saved': 0,          # Track signals saved to analytics
+            'browser_refreshes': 0,      # Track browser refreshes
         }
+
+    def _check_and_refresh_browser(self):
+        """Check if browser needs refresh and perform it"""
+        if self.browser_refresh.should_refresh():
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"\n[{timestamp}] INFO: Browser refresh interval reached. Refreshing to prevent session expiration...")
+
+            # Try standard refresh first (F5)
+            success = self.browser_refresh.refresh_browser()
+
+            if success:
+                self.stats['browser_refreshes'] += 1
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                print(f"[{timestamp}] INFO: Browser refresh successful - Session extended")
+            else:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                print(f"[{timestamp}] WARNING: Browser refresh may have failed - Check browser window")
 
     def _prepare_rounds_for_prediction(self):
         """Convert game_tracker round history to format expected by prediction engine"""
@@ -233,6 +255,9 @@ class MultiplierReaderApp:
         """Single update step"""
         self.stats['total_updates'] += 1
 
+        # Check if browser refresh is needed
+        self._check_and_refresh_browser()
+
         result = self.multiplier_reader.get_multiplier_with_status()
 
         if result['multiplier'] is None:
@@ -336,6 +361,9 @@ class MultiplierReaderApp:
         # Show prediction statistics
         print(f"[{timestamp}] INFO: Predictions generated: {self.stats['predictions_generated']}")
         print(f"[{timestamp}] INFO: Signals saved: {self.stats['signals_saved']}")
+
+        # Show browser refresh statistics
+        print(f"[{timestamp}] INFO: Browser refreshes: {self.stats['browser_refreshes']}")
 
         print()
 
