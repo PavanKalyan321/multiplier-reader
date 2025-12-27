@@ -3,13 +3,51 @@ import pytesseract
 import cv2
 import re
 import os
+import sys
+import subprocess
 from screen_capture import ScreenCapture
 from config import RegionConfig
 
-# Configure Tesseract path if it exists in common Windows location
-tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-if os.path.exists(tesseract_path):
-    pytesseract.pytesseract.pytesseract_cmd = tesseract_path
+# Configure Tesseract path for Windows
+# Set the path directly - pytesseract will handle it
+if sys.platform == 'win32':
+    # Windows paths
+    possible_paths = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ]
+
+    for path in possible_paths:
+        if os.path.exists(path):
+            pytesseract.pytesseract.pytesseract_cmd = path
+            print(f"[DEBUG] Tesseract configured at: {path}")
+
+            # Monkey-patch pytesseract's run_tesseract to use shell=True on Windows
+            # This fixes subprocess issues with paths containing spaces
+            _original_run_and_get_output = pytesseract.pytesseract.run_and_get_output
+
+            def patched_run_and_get_output(cmd, *args, **kwargs):
+                """Patched version that uses shell=True on Windows"""
+                # Modify the subprocess call to use shell=True
+                import subprocess as sp
+                original_run = sp.run
+
+                def run_with_shell(*run_args, **run_kwargs):
+                    run_kwargs['shell'] = True
+                    return original_run(*run_args, **run_kwargs)
+
+                sp.run = run_with_shell
+                try:
+                    result = _original_run_and_get_output(cmd, *args, **kwargs)
+                finally:
+                    sp.run = original_run
+                return result
+
+            pytesseract.pytesseract.run_and_get_output = patched_run_and_get_output
+            break
+else:
+    # Unix-like systems - should be in PATH
+    pytesseract.pytesseract.pytesseract_cmd = 'tesseract'
 
 class MultiplierReader:
     """Read multiplier values from game screen"""
@@ -23,8 +61,11 @@ class MultiplierReader:
         # Preprocess the image
         processed = self.screen_capture.preprocess_image(image)
 
-        # Use pytesseract to extract text
-        text = pytesseract.image_to_string(processed, config='--psm 6')
+        # Use custom OCR function for Windows compatibility
+        if sys.platform == 'win32':
+            text = self._run_tesseract_windows(processed)
+        else:
+            text = pytesseract.image_to_string(processed, config='--psm 6')
 
         # Extract numbers from text
         numbers = re.findall(r'\d+\.?\d*', text)
@@ -37,6 +78,37 @@ class MultiplierReader:
                 return None
 
         return None
+
+    def _run_tesseract_windows(self, image):
+        """Run Tesseract directly on Windows using subprocess with shell=True"""
+        import tempfile
+        import subprocess
+
+        # Save image to temp file
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+            tmp_path = tmp.name
+            cv2.imwrite(tmp_path, image)
+
+        try:
+            # Run tesseract with shell=True to handle paths with spaces
+            tesseract_cmd = pytesseract.pytesseract.pytesseract_cmd
+            result = subprocess.run(
+                [tesseract_cmd, tmp_path, 'stdout', '--psm', '6'],
+                capture_output=True,
+                text=True,
+                shell=True
+            )
+
+            if result.returncode == 0:
+                return result.stdout
+            else:
+                raise Exception(f"Tesseract failed: {result.stderr}")
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
 
     def read_multiplier(self):
         """Capture region and read multiplier"""

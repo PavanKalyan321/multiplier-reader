@@ -8,6 +8,7 @@ from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
 from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
+from ml_predictor import CrashPredictor, ML_AVAILABLE
 
 
 class Colors:
@@ -62,6 +63,18 @@ class MultiplierReaderApp:
             key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s'
         )
 
+        # Initialize ML predictor
+        self.predictor = None
+        self.current_prediction_id = None  # Track current prediction in Supabase
+        if ML_AVAILABLE:
+            self.predictor = CrashPredictor(history_size=1000, min_rounds_for_prediction=5)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: ML Predictor initialized (needs 5 rounds to start predictions)")
+
+            # Try to load historical data from Supabase
+            self._load_historical_data()
+        else:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] WARNING: ML libraries not installed. Run: pip install scikit-learn")
+
         self.stats = {
             'total_updates': 0,
             'successful_reads': 0,
@@ -71,7 +84,55 @@ class MultiplierReaderApp:
             'start_time': datetime.now(),
             'supabase_inserts': 0,      # Track successful inserts
             'supabase_failures': 0,      # Track failed inserts
+            'predictions_made': 0,       # Track ML predictions
+            'prediction_errors': [],     # Track prediction accuracy
         }
+
+    def _load_historical_data(self):
+        """Load historical round data from Supabase to initialize ML model"""
+        if not self.predictor or not self.supabase.enabled:
+            return
+
+        try:
+            # Fetch last 1000 rounds from Supabase
+            rounds = self.supabase.get_recent_rounds(limit=1000)
+
+            if not rounds:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: No historical data in Supabase, will collect from scratch")
+                return
+
+            # Add rounds to predictor (in chronological order, oldest first)
+            rounds_reverse = list(reversed(rounds))  # Reverse since query returns newest first
+
+            for round_data in rounds_reverse:
+                multiplier = round_data.get('multiplier')
+                timestamp_str = round_data.get('timestamp')
+
+                if multiplier and timestamp_str:
+                    # Parse timestamp
+                    try:
+                        timestamp = datetime.fromisoformat(timestamp_str).timestamp()
+                    except:
+                        timestamp = time.time()
+
+                    # Estimate duration (we don't have this in DB, use average ~3 seconds)
+                    duration = 3.0
+
+                    self.predictor.add_round(
+                        crash_multiplier=multiplier,
+                        duration=duration,
+                        timestamp=timestamp
+                    )
+
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Loaded {len(rounds)} historical rounds for ML training")
+
+            # Train the model if we have enough data
+            if len(rounds) >= self.predictor.min_rounds_for_prediction:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Training ML model...")
+                self.predictor.train(lookback=10)
+
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] WARNING: Failed to load historical data: {e}")
 
     def generate_sparkline(self, values, width=10):
         """Generate ASCII sparkline from values"""
@@ -136,23 +197,150 @@ class MultiplierReaderApp:
         history_table = self.game_tracker.format_round_history_table(limit=None)
         print(history_table)
 
-        # Insert round data into Supabase
+        # Step 1: Insert round data into Supabase (AviatorRound table)
         round_end_time = datetime.fromtimestamp(round_summary.end_time)
-        success = self.supabase.insert_round(
+        round_id = self.supabase.insert_round(
             round_number=round_summary.round_number,
-            multiplier=round_summary.max_multiplier,  # Use max_multiplier as final multiplier
+            multiplier=round_summary.max_multiplier,
             timestamp=round_end_time
         )
 
         # Update stats
-        if success:
+        if round_id:
             self.stats['supabase_inserts'] += 1
         else:
             self.stats['supabase_failures'] += 1
+            round_id = None  # Make sure it's None for later checks
+
+        # Update ML predictor with actual result (if we had a prediction)
+        if self.predictor and self.current_prediction_id:
+            # Note: We don't need to update analytics_round_signals with actual result
+            # The actual result is in AviatorRound and linked via round_id
+            # We can join them to calculate accuracy when needed
+
+            # Update predictor's internal accuracy tracking
+            self.predictor.update_prediction_accuracy(round_summary.max_multiplier)
+
+            # Calculate error for stats
+            if self.predictor.last_prediction:
+                error = abs(self.predictor.last_prediction['predicted_multiplier'] - round_summary.max_multiplier)
+                self.stats['prediction_errors'].append(error)
+
+        # Add this round to ML predictor history
+        if self.predictor:
+            self.predictor.add_round(
+                crash_multiplier=round_summary.max_multiplier,
+                duration=round_summary.duration,
+                timestamp=round_summary.end_time
+            )
+
+            # Retrain the model periodically (every 10 rounds)
+            if round_summary.round_number % 10 == 0 and self.predictor.is_trained:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Retraining ML model with new data...")
+                self.predictor.train(lookback=5)
+
+        # Step 2: Make prediction for NEXT round and save to analytics table
+        if round_id:  # Only make prediction if round was saved successfully
+            self._make_prediction_for_next_round(
+                round_summary.round_number + 1,
+                last_round_id=round_id,
+                last_round_multiplier=round_summary.max_multiplier,
+                round_timestamp=round_end_time
+            )
 
         print()
         timestamp = datetime.now().strftime("%H:%M:%S")
         print(f"[{timestamp}] INFO: Waiting for next round...")
+
+    def _make_prediction_for_next_round(self, next_round_number, last_round_id=None,
+                                        last_round_multiplier=None, round_timestamp=None):
+        """Make ML prediction for the next round and save to analytics table"""
+        if not self.predictor:
+            return
+
+        # Check if we have enough data to make predictions
+        if len(self.predictor.round_history) < self.predictor.min_rounds_for_prediction:
+            remaining = self.predictor.min_rounds_for_prediction - len(self.predictor.round_history)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Need {remaining} more rounds before ML predictions can start")
+            return
+
+        # Train if not yet trained
+        if not self.predictor.is_trained:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Training ML model for first time...")
+            # Use adaptive lookback based on available rounds
+            lookback = min(5, len(self.predictor.round_history))
+            if self.predictor.train(lookback=lookback):
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Model trained successfully!")
+            else:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] WARNING: Model training failed")
+                return
+
+        # Make prediction (use adaptive lookback)
+        lookback = min(5, len(self.predictor.round_history))
+        prediction = self.predictor.predict(lookback=lookback)
+
+        if prediction:
+            # Display prediction
+            predicted_mult = prediction['predicted_multiplier']
+            confidence = prediction['confidence']
+
+            print()
+            print("=" * 80)
+            print(f"{Colors.CYAN}{Colors.BOLD}ML PREDICTION FOR ROUND {next_round_number}{Colors.RESET}")
+            print("=" * 80)
+            print(f"{Colors.BOLD}Predicted Crash Multiplier:{Colors.RESET} {Colors.get_multiplier_color(predicted_mult)}{predicted_mult:.2f}x{Colors.RESET}")
+            print(f"{Colors.BOLD}Confidence:{Colors.RESET} {confidence * 100:.1f}%")
+            print(f"{Colors.BOLD}Model:{Colors.RESET} {prediction['model_type']}")
+            print(f"{Colors.BOLD}Training Samples:{Colors.RESET} {prediction['training_samples']}")
+
+            # Show prediction accuracy statistics if available
+            predictor_stats = self.predictor.get_statistics()
+            if predictor_stats['predictions_made'] > 0:
+                print(f"{Colors.BOLD}Predictions Made:{Colors.RESET} {predictor_stats['predictions_made']}")
+                print(f"{Colors.BOLD}Average Error:{Colors.RESET} {predictor_stats['avg_error']:.2f}x")
+
+            print("=" * 80)
+            print()
+
+            # Save prediction to analytics_round_signals table
+            # multiplier column = actual multiplier from the last round
+            # payload column = prediction structure with expectedOutput
+            if last_round_id and last_round_multiplier is not None:
+                # Calculate prediction range (±20% of predicted value)
+                range_margin = predicted_mult * 0.2
+                prediction_range = (
+                    max(1.0, predicted_mult - range_margin),  # Min can't be less than 1.0
+                    predicted_mult + range_margin
+                )
+
+                model_output = {
+                    'predicted_multiplier': predicted_mult,
+                    'prediction_timestamp': prediction.get('timestamp'),
+                    'prediction_number': prediction.get('prediction_number'),
+                    'features_used': 21  # Number of features used
+                }
+
+                metadata = {
+                    'next_round_number': next_round_number,
+                    'predictor_stats': predictor_stats
+                }
+
+                signal_id = self.supabase.insert_analytics_signal(
+                    round_id=last_round_id,
+                    actual_multiplier=last_round_multiplier,  # Actual multiplier from last round
+                    predicted_multiplier=predicted_mult,       # Predicted for next round
+                    model_name=prediction.get('model_type', 'RandomForest'),
+                    confidence=confidence,
+                    prediction_range=prediction_range,
+                    model_output=model_output,
+                    metadata=metadata,
+                    timestamp=round_timestamp  # Use same timestamp as the round
+                )
+
+                if signal_id:
+                    self.current_prediction_id = signal_id
+
+            self.stats['predictions_made'] += 1
 
     def update_step(self):
         """Single update step"""
@@ -257,6 +445,21 @@ class MultiplierReaderApp:
         if self.supabase.enabled:
             print(f"[{timestamp}] INFO: Supabase inserts: {self.stats['supabase_inserts']}")
             print(f"[{timestamp}] INFO: Supabase failures: {self.stats['supabase_failures']}")
+
+        # Show ML prediction statistics
+        if self.predictor and self.stats['predictions_made'] > 0:
+            print()
+            print(f"[{timestamp}] INFO: ML Predictions made: {self.stats['predictions_made']}")
+
+            predictor_stats = self.predictor.get_statistics()
+            if predictor_stats['predictions_made'] > 0:
+                print(f"[{timestamp}] INFO: Average prediction error: {predictor_stats['avg_error']:.2f}x")
+                print(f"[{timestamp}] INFO: Min prediction error: {predictor_stats['min_error']:.2f}x")
+                print(f"[{timestamp}] INFO: Max prediction error: {predictor_stats['max_error']:.2f}x")
+
+            if self.stats['prediction_errors']:
+                avg_app_error = sum(self.stats['prediction_errors']) / len(self.stats['prediction_errors'])
+                print(f"[{timestamp}] INFO: Session average error: {avg_app_error:.2f}x")
 
         print()
 

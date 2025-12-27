@@ -47,7 +47,11 @@
       "Bash(output_test.txt )",
       "Bash(test_region.png )",
       "Bash(test_region_processed.png )",
-      "Bash(test_region_raw.png)"
+      "Bash(test_region_raw.png)",
+      "Bash(\"/c/Program Files/Tesseract-OCR/tesseract.exe\" --version)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/Tesseract-OCR\")",
+      "Bash(python.exe:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
