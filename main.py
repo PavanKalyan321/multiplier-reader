@@ -193,9 +193,7 @@ class MultiplierReaderApp:
     def log_round_completion(self, round_summary):
         """Log a completed round with formatted table and save to Supabase"""
         print("\n")
-        print("=" * 80)
         print("ROUND ENDED")
-        print("=" * 80)
         print()
 
         # Log the complete round history table
@@ -319,7 +317,6 @@ class MultiplierReaderApp:
     def print_status(self, multiplier, status, round_summary):
         """Print enhanced status with colors and sparkline"""
         if round_summary['status'] == 'RUNNING' and 'current_multiplier' in round_summary:
-            duration = round_summary['duration']
             max_mult = round_summary['max_multiplier']
             current = round_summary['current_multiplier']
             round_num = self.game_tracker.round_number
@@ -335,20 +332,19 @@ class MultiplierReaderApp:
             # Get color based on multiplier
             color = Colors.get_multiplier_color(current)
 
-            # Build status line with columns
-            # Format: [TIME] R:X | CURR: X.XXx | MAX: X.XXx | DUR: X.Xs | TREND: sparkline
+            # Build status line with columns (removed duration)
+            # Format: [TIME] R:X | CURR: X.XXx MAX: X.XXx | TREND: sparkline
             timestamp = datetime.now().strftime("%H:%M:%S")
             status_line = (
                 f"{Colors.GRAY}[{timestamp}]{Colors.RESET} "
                 f"{Colors.CYAN}R:{round_num+1}{Colors.RESET} | "
-                f"{Colors.BOLD}CURR:{Colors.RESET} {color}{current:5.2f}x{Colors.RESET} | "
+                f"{Colors.BOLD}CURR:{Colors.RESET} {color}{current:5.2f}x{Colors.RESET} "
                 f"{Colors.BOLD}MAX:{Colors.RESET} {Colors.MAGENTA}{max_mult:5.2f}x{Colors.RESET} | "
-                f"{Colors.BOLD}DUR:{Colors.RESET} {duration:5.1f}s | "
                 f"{Colors.BOLD}TREND:{Colors.RESET} {color}{sparkline}{Colors.RESET}"
             )
 
             # Only print if values changed (compare without colors/timestamp)
-            status_key = f"{round_num}|{current:.2f}|{max_mult:.2f}|{duration:.1f}"
+            status_key = f"{round_num}|{current:.2f}|{max_mult:.2f}"
             if status_key != self.last_status_msg:
                 print(status_line)
                 self.last_status_msg = status_key
