@@ -3,14 +3,18 @@ import time
 import sys
 import json
 from datetime import datetime
-from config import load_config, get_default_region
+from config import load_config, get_default_region, load_game_config, GameConfig, migrate_old_config
 from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
+from balance_reader import BalanceReader
+from game_actions import GameActions
 from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
 from prediction_engine import PredictionEngine
 from analytics_client import AnalyticsClient
 from browser_refresh import BrowserRefresh
+from menu_controller import MenuController
+from unified_region_selector import run_unified_gui
 
 
 class Colors:
@@ -45,11 +49,28 @@ class Colors:
 class MultiplierReaderApp:
     """Main application for monitoring game multiplier"""
 
-    def __init__(self, region=None, update_interval=0.5):
-        self.region = region or load_config() or get_default_region()
+    def __init__(self, region=None, config=None, update_interval=0.5):
+        # Handle both legacy region parameter and new GameConfig parameter
+        if config:
+            self.config = config
+            self.region = config.multiplier_region
+        else:
+            self.region = region or load_config() or get_default_region()
+            self.config = None
+
         self.update_interval = update_interval
         self.screen_capture = ScreenCapture(self.region)
         self.multiplier_reader = MultiplierReader(self.screen_capture)
+
+        # Initialize new components if GameConfig is provided
+        if self.config:
+            self.balance_screen_capture = ScreenCapture(self.config.balance_region)
+            self.balance_reader = BalanceReader(self.balance_screen_capture)
+            self.game_actions = GameActions(self.config.bet_button_point)
+        else:
+            self.balance_reader = None
+            self.game_actions = None
+
         self.game_tracker = GameTracker()
         self.running = False
         self.previous_round_count = 0
@@ -333,6 +354,43 @@ class MultiplierReaderApp:
                 self.last_status_msg = status_key
                 self.status_printed = True
 
+    def read_current_balance(self):
+        """Read current balance value
+
+        Returns:
+            float: Balance amount or None if failed
+        """
+        if not self.balance_reader:
+            return None
+
+        return self.balance_reader.read_balance()
+
+    def place_bet(self) -> bool:
+        """Place a bet by clicking the bet button
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.game_actions:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"[{timestamp}] ERROR: Game actions not configured")
+            return False
+
+        return self.game_actions.click_bet_button()
+
+    def cashout(self) -> bool:
+        """Cashout by clicking the cashout button
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.game_actions:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"[{timestamp}] ERROR: Game actions not configured")
+            return False
+
+        return self.game_actions.click_cashout_button()
+
     def print_stats(self):
         """Print statistics"""
         elapsed = (datetime.now() - self.stats['start_time']).total_seconds()
@@ -364,6 +422,11 @@ class MultiplierReaderApp:
 
         # Show browser refresh statistics
         print(f"[{timestamp}] INFO: Browser refreshes: {self.stats['browser_refreshes']}")
+
+        # Show click statistics
+        if self.game_actions:
+            print()
+            self.game_actions.print_click_stats()
 
         print()
 
@@ -404,15 +467,88 @@ class MultiplierReaderApp:
             print(f"[{timestamp}] WARNING: Stopping multiplier reader...")
             self.print_stats()
 
-if __name__ == "__main__":
-    # Check for command line arguments
-    interval = 0.5
-    if len(sys.argv) > 1:
-        try:
-            interval = float(sys.argv[1])
-        except ValueError:
-            print("Usage: python main.py [update_interval_seconds]")
-            sys.exit(1)
+def test_configuration():
+    """Test current configuration by reading balance and multiplier"""
+    timestamp = datetime.now().strftime("%H:%M:%S")
 
-    app = MultiplierReaderApp(update_interval=interval)
-    app.run()
+    config = load_game_config()
+    if not config or not config.is_valid():
+        print("\n" + "!" * 60)
+        print("Configuration is not complete!".center(60))
+        print("!" * 60)
+        print("\nPlease configure the regions first.")
+        input("\nPress Enter to continue...")
+        return
+
+    print("\n" + "=" * 60)
+    print("TESTING CONFIGURATION".center(60))
+    print("=" * 60 + "\n")
+
+    # Create temporary app for testing
+    app = MultiplierReaderApp(config=config)
+
+    print(f"[{timestamp}] INFO: Testing balance reader...")
+    balance = app.read_current_balance()
+    if balance is not None:
+        print(f"[{timestamp}] SUCCESS: Balance read: {balance:.2f}")
+    else:
+        print(f"[{timestamp}] WARNING: Could not read balance")
+
+    print(f"\n[{timestamp}] INFO: Testing multiplier reader...")
+    result = app.multiplier_reader.get_multiplier_with_status()
+    if result['multiplier'] is not None:
+        print(f"[{timestamp}] SUCCESS: Multiplier read: {result['multiplier']:.2f}x")
+    else:
+        print(f"[{timestamp}] WARNING: Could not read multiplier")
+
+    print(f"\n[{timestamp}] INFO: Bet button coordinates: ({config.bet_button_point.x}, {config.bet_button_point.y})")
+    print(f"[{timestamp}] INFO: (Button test: NOT clicking to avoid accidental bets)")
+
+    print("\n" + "=" * 60)
+    input("Press Enter to continue...")
+
+
+def main():
+    """Main entry point with menu system"""
+    # Migrate old config if needed
+    migrate_old_config()
+
+    menu = MenuController()
+
+    while True:
+        action = menu.run()
+
+        if action == 'configure':
+            run_unified_gui()
+
+        elif action == 'monitor':
+            config = load_game_config()
+            if not config or not config.is_valid():
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                print(f"\n[{timestamp}] ERROR: Invalid configuration")
+                input("\nPress Enter to continue...")
+                continue
+
+            # Check for command line arguments for interval
+            interval = 0.5
+            if len(sys.argv) > 1:
+                try:
+                    interval = float(sys.argv[1])
+                except ValueError:
+                    print("Usage: python main.py [update_interval_seconds]")
+                    continue
+
+            app = MultiplierReaderApp(config=config, update_interval=interval)
+            app.run()
+
+        elif action == 'test':
+            test_configuration()
+
+        elif action == 'exit':
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"\n[{timestamp}] INFO: Exiting Aviator Bot. Goodbye!")
+            break
+
+
+if __name__ == "__main__":
+    main()
