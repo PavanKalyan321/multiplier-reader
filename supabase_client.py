@@ -142,6 +142,85 @@ class SupabaseLogger:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] WARNING: Failed to save analytics signal: {e}")
             return None
 
+    def insert_multi_model_signal(self, round_id: int, actual_multiplier: float,
+                                   predictions: list, timestamp: datetime = None):
+        """
+        Insert analytics signal with multiple model predictions
+
+        Args:
+            round_id (int): The roundId from AviatorRound table
+            actual_multiplier (float): The actual multiplier from the last round
+            predictions (list): List of prediction dicts from all models
+            timestamp (datetime): Optional timestamp to use (same as the round's timestamp)
+
+        Returns:
+            int: signal id if successful, None otherwise
+        """
+        if not self.enabled:
+            return None
+
+        try:
+            import json
+
+            # Build payload with all model predictions
+            payload_models = []
+            for pred in predictions:
+                model_data = {
+                    'modelName': pred['model_name'],
+                    'expectedOutput': pred['predicted_multiplier'],
+                    'confidence': f"{pred['confidence'] * 100:.0f}%",
+                    'range': f"{pred['range'][0]:.2f}-{pred['range'][1]:.2f}",
+                    'bet': pred.get('bet', False)  # Include betting flag
+                }
+                payload_models.append(model_data)
+
+            # Overall payload structure
+            payload = {
+                'roundId': round_id,
+                'actualMultiplier': actual_multiplier,
+                'models': payload_models,
+                'timestamp': datetime.now().isoformat()
+            }
+
+            # Use ensemble or first model for main fields
+            ensemble = predictions[0]  # First should be ensemble if available
+
+            # Prepare data matching analytics_round_signals schema
+            data = {
+                'round_id': round_id,
+                'multiplier': float(actual_multiplier),  # Actual multiplier from last round
+                'model_name': 'MultiModel',  # Indicate this is multi-model
+                'model_output': {
+                    'num_models': len(predictions),
+                    'models': [p['model_name'] for p in predictions]
+                },
+                'confidence': float(ensemble['confidence']),
+                'metadata': {
+                    'prediction_count': len(predictions),
+                    'bet_consensus': sum(1 for p in predictions if p.get('bet', False))
+                },
+                'payload': json.dumps(payload)  # Store all predictions as JSON text
+            }
+
+            # Add timestamp if provided (to match the AviatorRound entry)
+            if timestamp is not None:
+                data['created_at'] = timestamp.isoformat()
+
+            # Insert into analytics_round_signals table
+            response = self.client.table('analytics_round_signals').insert(data).execute()
+
+            # Extract signal id from response
+            if response.data and len(response.data) > 0:
+                signal_id = response.data[0].get('id')
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Multi-model signal saved (ID: {signal_id}, round: {round_id}, {len(predictions)} models)")
+                return signal_id
+
+            return None
+
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] WARNING: Failed to save multi-model signal: {e}")
+            return None
+
     def get_recent_rounds(self, limit: int = 1000):
         """
         Fetch recent rounds from Supabase to initialize ML model

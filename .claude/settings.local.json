@@ -51,7 +51,9 @@
       "Bash(\"/c/Program Files/Tesseract-OCR/tesseract.exe\" --version)",
       "Bash(export PATH=\"$PATH:/c/Program Files/Tesseract-OCR\")",
       "Bash(python.exe:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git config:*)",
+      "Bash(git push:*)"
     ]
   }
 }

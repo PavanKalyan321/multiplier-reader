@@ -8,7 +8,12 @@ from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
 from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
-from ml_predictor import CrashPredictor, ML_AVAILABLE
+try:
+    from multi_model_predictor import MultiModelPredictor, ML_AVAILABLE
+    MULTI_MODEL_AVAILABLE = True
+except ImportError:
+    MULTI_MODEL_AVAILABLE = False
+    from ml_predictor import CrashPredictor, ML_AVAILABLE
 
 
 class Colors:
@@ -63,12 +68,20 @@ class MultiplierReaderApp:
             key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s'
         )
 
-        # Initialize ML predictor
+        # Initialize ML predictor (use multi-model if available)
         self.predictor = None
-        self.current_prediction_id = None  # Track current prediction in Supabase
+        self.current_prediction_ids = {}  # Track prediction IDs per model
+        self.use_multi_model = False
+
         if ML_AVAILABLE:
-            self.predictor = CrashPredictor(history_size=1000, min_rounds_for_prediction=5)
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: ML Predictor initialized (needs 5 rounds to start predictions)")
+            if MULTI_MODEL_AVAILABLE:
+                self.predictor = MultiModelPredictor(history_size=1000, min_rounds_for_prediction=5)
+                self.use_multi_model = True
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Multi-Model Predictor initialized (5 models)")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Models: RandomForest, GradientBoosting, Ridge, Lasso, DecisionTree")
+            else:
+                self.predictor = CrashPredictor(history_size=1000, min_rounds_for_prediction=5)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Single ML Predictor initialized (RandomForest only)")
 
             # Try to load historical data from Supabase
             self._load_historical_data()
@@ -213,17 +226,22 @@ class MultiplierReaderApp:
             round_id = None  # Make sure it's None for later checks
 
         # Update ML predictor with actual result (if we had a prediction)
-        if self.predictor and self.current_prediction_id:
-            # Note: We don't need to update analytics_round_signals with actual result
-            # The actual result is in AviatorRound and linked via round_id
-            # We can join them to calculate accuracy when needed
-
+        if self.predictor and len(self.current_prediction_ids) > 0:
             # Update predictor's internal accuracy tracking
             self.predictor.update_prediction_accuracy(round_summary.max_multiplier)
 
             # Calculate error for stats
-            if self.predictor.last_prediction:
+            if self.use_multi_model and self.predictor.last_predictions:
+                # Use ensemble prediction for error calculation
+                for model_name, pred in self.predictor.last_predictions.items():
+                    error = abs(pred['predicted_multiplier'] - round_summary.max_multiplier)
+                    if 'prediction_errors' not in self.stats:
+                        self.stats['prediction_errors'] = []
+                    self.stats['prediction_errors'].append(error)
+            elif hasattr(self.predictor, 'last_prediction') and self.predictor.last_prediction:
                 error = abs(self.predictor.last_prediction['predicted_multiplier'] - round_summary.max_multiplier)
+                if 'prediction_errors' not in self.stats:
+                    self.stats['prediction_errors'] = []
                 self.stats['prediction_errors'].append(error)
 
         # Add this round to ML predictor history
@@ -277,10 +295,52 @@ class MultiplierReaderApp:
 
         # Make prediction (use adaptive lookback)
         lookback = min(5, len(self.predictor.round_history))
-        prediction = self.predictor.predict(lookback=lookback)
 
-        if prediction:
-            # Display prediction
+        # Get predictions (multi-model or single)
+        if self.use_multi_model:
+            predictions = self.predictor.predict_all(lookback=lookback)
+            if not predictions:
+                return
+
+            # Get ensemble prediction
+            ensemble = self.predictor.get_ensemble_prediction(predictions)
+
+            # Display all model predictions
+            print()
+            print("=" * 80)
+            print(f"{Colors.CYAN}{Colors.BOLD}ML PREDICTIONS FOR ROUND {next_round_number} (Multi-Model){Colors.RESET}")
+            print("=" * 80)
+
+            # Show ensemble first
+            print(f"\n{Colors.BOLD}{Colors.YELLOW}ENSEMBLE PREDICTION:{Colors.RESET}")
+            print(f"  Multiplier: {Colors.get_multiplier_color(ensemble['predicted_multiplier'])}{ensemble['predicted_multiplier']:.2f}x{Colors.RESET}")
+            print(f"  Confidence: {ensemble['confidence'] * 100:.0f}%")
+            print(f"  Range: {ensemble['range'][0]:.2f}x - {ensemble['range'][1]:.2f}x")
+            print(f"  Bet: {Colors.GREEN if ensemble['bet'] else Colors.RED}{'YES' if ensemble['bet'] else 'NO'}{Colors.RESET}")
+            if 'bet_votes' in ensemble:
+                print(f"  Bet Votes: {ensemble['bet_votes']}")
+
+            # Show individual model predictions
+            print(f"\n{Colors.BOLD}Individual Models:{Colors.RESET}")
+            for pred in predictions:
+                bet_indicator = f"{Colors.GREEN}✓{Colors.RESET}" if pred['bet'] else f"{Colors.RED}✗{Colors.RESET}"
+                print(f"  {pred['model_name']:20s} {pred['predicted_multiplier']:5.2f}x  Conf: {pred['confidence']*100:3.0f}%  Bet: {bet_indicator}")
+
+            # Show statistics
+            predictor_stats = self.predictor.get_statistics()
+            print(f"\n{Colors.BOLD}Statistics:{Colors.RESET}")
+            print(f"  Total Predictions: {predictor_stats['predictions_made']}")
+            print(f"  Rounds Collected: {predictor_stats['rounds_collected']}")
+
+            print("=" * 80)
+            print()
+
+        else:
+            # Single model prediction (legacy)
+            prediction = self.predictor.predict(lookback=lookback)
+            if not prediction:
+                return
+
             predicted_mult = prediction['predicted_multiplier']
             confidence = prediction['confidence']
 
@@ -302,14 +362,27 @@ class MultiplierReaderApp:
             print("=" * 80)
             print()
 
-            # Save prediction to analytics_round_signals table
-            # multiplier column = actual multiplier from the last round
-            # payload column = prediction structure with expectedOutput
-            if last_round_id and last_round_multiplier is not None:
-                # Calculate prediction range (±20% of predicted value)
+        # Save predictions to database
+        if last_round_id and last_round_multiplier is not None:
+            if self.use_multi_model:
+                # Save multi-model predictions (includes ensemble + all individual models)
+                all_predictions = [ensemble] + predictions
+
+                signal_id = self.supabase.insert_multi_model_signal(
+                    round_id=last_round_id,
+                    actual_multiplier=last_round_multiplier,
+                    predictions=all_predictions,
+                    timestamp=round_timestamp
+                )
+
+                if signal_id:
+                    self.current_prediction_ids['multi_model'] = signal_id
+
+            else:
+                # Save single model prediction (legacy)
                 range_margin = predicted_mult * 0.2
                 prediction_range = (
-                    max(1.0, predicted_mult - range_margin),  # Min can't be less than 1.0
+                    max(1.0, predicted_mult - range_margin),
                     predicted_mult + range_margin
                 )
 
@@ -317,7 +390,7 @@ class MultiplierReaderApp:
                     'predicted_multiplier': predicted_mult,
                     'prediction_timestamp': prediction.get('timestamp'),
                     'prediction_number': prediction.get('prediction_number'),
-                    'features_used': 21  # Number of features used
+                    'features_used': 21
                 }
 
                 metadata = {
@@ -327,20 +400,20 @@ class MultiplierReaderApp:
 
                 signal_id = self.supabase.insert_analytics_signal(
                     round_id=last_round_id,
-                    actual_multiplier=last_round_multiplier,  # Actual multiplier from last round
-                    predicted_multiplier=predicted_mult,       # Predicted for next round
+                    actual_multiplier=last_round_multiplier,
+                    predicted_multiplier=predicted_mult,
                     model_name=prediction.get('model_type', 'RandomForest'),
                     confidence=confidence,
                     prediction_range=prediction_range,
                     model_output=model_output,
                     metadata=metadata,
-                    timestamp=round_timestamp  # Use same timestamp as the round
+                    timestamp=round_timestamp
                 )
 
                 if signal_id:
-                    self.current_prediction_id = signal_id
+                    self.current_prediction_ids['single'] = signal_id
 
-            self.stats['predictions_made'] += 1
+        self.stats['predictions_made'] += 1
 
     def update_step(self):
         """Single update step"""
