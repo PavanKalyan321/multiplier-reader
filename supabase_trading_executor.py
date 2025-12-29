@@ -82,31 +82,25 @@ class SupabaseExecutor:
         print(f"[{timestamp}] SUPABASE_EXECUTOR {level}: {message}")
 
     def _should_trade(self, signal: ModelSignal) -> bool:
-        """Determine if signal meets confidence threshold
+        """Determine if signal should be traded (check bet flag)
 
         Args:
             signal: ModelSignal to evaluate
 
         Returns:
-            True if confidence meets strategy threshold
+            True if bet flag is set to True
         """
-        threshold = self.strategy_thresholds.get(
-            self.confidence_strategy,
-            self.confidence_threshold
-        )
-
-        meets_threshold = signal.confidence_pct >= threshold
-
-        if not meets_threshold:
+        if not signal.bet:
             self._log(
-                f"Signal confidence {signal.confidence_pct}% below threshold {threshold}% - SKIPPING",
+                f"Signal bet flag is False - SKIPPING",
                 "DEBUG"
             )
+            return False
 
-        return meets_threshold
+        return True
 
     def _get_target_multiplier(self, signal: ModelSignal) -> float:
-        """Get target multiplier, adjusted by confidence if needed
+        """Get target multiplier from expected_output
 
         Args:
             signal: ModelSignal with expected_output
@@ -114,23 +108,11 @@ class SupabaseExecutor:
         Returns:
             Target multiplier for cashout
         """
-        target = signal.multiplier
-
-        # Optional: Adjust target based on confidence
-        # Higher confidence = slightly higher target (more aggressive)
-        # Lower confidence = slightly lower target (more conservative)
-        if signal.confidence_pct < 60:
-            # Conservative: take profit at slightly lower multiplier
-            adjustment = (60 - signal.confidence_pct) / 100 * 0.1
-            target = max(1.01, target - adjustment)
-        elif signal.confidence_pct > 80:
-            # Aggressive: can aim for higher multiplier
-            adjustment = (signal.confidence_pct - 80) / 100 * 0.1
-            target = target + adjustment
+        target = signal.expected_output
 
         self._log(
-            f"Target multiplier: {target:.2f}x (confidence: {signal.confidence_pct}%)",
-            "DEBUG"
+            f"Target multiplier: {target:.2f}x (from XGBoost expectedOutput)",
+            "INFO"
         )
 
         return target
@@ -176,7 +158,7 @@ class SupabaseExecutor:
 
         self._log(
             f"Executing signal: Round {signal.round_id}, Model: {signal.model_name}, "
-            f"Target: {signal.multiplier}x, Confidence: {signal.confidence_pct}%",
+            f"Target: {signal.expected_output}x, Confidence: {signal.confidence_pct}%",
             "INFO"
         )
 

@@ -22,26 +22,27 @@ class ModelName(Enum):
 class ModelSignal:
     """Data structure for ML model trading signal"""
     round_id: int
-    multiplier: float  # Expected multiplier
-    model_name: str
-    confidence: float  # 0-100 or 0-1
-    model_output: Dict[str, Any]
+    model_name: str                     # e.g., "XGBoost"
+    confidence: float                   # 0-100
+    expected_output: float              # Target multiplier from model
+    bet: bool                           # Should execute bet
+    confidence_pct: float               # Parsed confidence as percentage
+    range_min: float                    # Min expected range
+    range_max: float                    # Max expected range
+    actual_multiplier: Optional[float] = None  # Actual game multiplier
     payload: Optional[Dict[str, Any]] = None
     created_at: Optional[str] = None
 
-    # Extracted from payload
-    expected_output: float = 0.0
-    confidence_pct: float = 0.0
-    range_min: float = 0.0
-    range_max: float = 0.0
+    # Legacy fields for compatibility
+    multiplier: float = 0.0
 
     def is_valid(self) -> bool:
         """Validate signal data"""
         if not self.model_name or self.round_id <= 0:
             return False
-        if self.multiplier <= 0:
+        if self.expected_output <= 0:
             return False
-        if not (0 <= self.confidence <= 100):
+        if not (0 <= self.confidence_pct <= 100):
             return False
         return True
 
@@ -50,8 +51,9 @@ class ModelSignal:
         return (
             f"Signal(Round: {self.round_id}, "
             f"Model: {self.model_name}, "
-            f"Target: {self.multiplier}x, "
-            f"Confidence: {self.confidence}%)"
+            f"Target: {self.expected_output}x, "
+            f"Confidence: {self.confidence_pct}%, "
+            f"Bet: {self.bet})"
         )
 
 
@@ -106,61 +108,76 @@ class SupabaseSignalListener:
             return {}
 
     def _parse_signal(self, row: Dict[str, Any]) -> Optional[ModelSignal]:
-        """Parse database row into ModelSignal
+        """Parse database row into ModelSignal (supporting new payload format with models array)
 
         Args:
             row: Database row from analytics_round_signals
 
         Returns:
-            ModelSignal or None if invalid
+            ModelSignal for XGBoost model or None if not found/invalid
         """
         try:
             round_id = row.get('round_id', 0)
-            multiplier = float(row.get('multiplier', 0))
-            model_name = row.get('model_name', '')
-            confidence = float(row.get('confidence', 0))
-            model_output = row.get('model_output', {})
+            actual_multiplier = row.get('actualMultiplier')
             payload_str = row.get('payload')
             created_at = row.get('created_at')
 
-            # Parse payload if it's a string
+            # Parse payload
             payload = self._parse_payload(payload_str) if payload_str else {}
+
+            # Look for XGBoost model in the models array
+            models = payload.get('models', [])
+            xgboost_model = None
+            for model in models:
+                if model.get('modelName') == 'XGBoost':
+                    xgboost_model = model
+                    break
+
+            if not xgboost_model:
+                self._log(f"XGBoost model not found in payload for round {round_id}", "DEBUG")
+                return None
+
+            # Extract XGBoost model data
+            model_name = xgboost_model.get('modelName', 'XGBoost')
+            expected_output = float(xgboost_model.get('expectedOutput', 0))
+            confidence_str = xgboost_model.get('confidence', '0%')
+            range_str = xgboost_model.get('range', '0-0')
+            bet = xgboost_model.get('bet', False)
+
+            # Parse confidence (handle "50%" format)
+            if isinstance(confidence_str, str):
+                confidence_str = confidence_str.rstrip('%')
+                try:
+                    confidence_pct = float(confidence_str)
+                except ValueError:
+                    confidence_pct = 0.0
+            else:
+                confidence_pct = float(confidence_str)
+
+            # Parse range (e.g., "563.04-844.55")
+            range_min, range_max = 0.0, 0.0
+            if '-' in range_str:
+                try:
+                    min_str, max_str = range_str.split('-')
+                    range_min = float(min_str.strip())
+                    range_max = float(max_str.strip())
+                except ValueError:
+                    pass
 
             # Create signal
             signal = ModelSignal(
                 round_id=round_id,
-                multiplier=multiplier,
                 model_name=model_name,
-                confidence=confidence,
-                model_output=model_output,
+                confidence=confidence_pct,
+                expected_output=expected_output,
+                bet=bet,
+                confidence_pct=confidence_pct,
+                range_min=range_min,
+                range_max=range_max,
+                actual_multiplier=actual_multiplier,
                 payload=payload,
                 created_at=created_at
             )
-
-            # Extract payload fields
-            if payload:
-                signal.expected_output = float(payload.get('expectedOutput', 0))
-
-                # Parse confidence (handle both "10%" and 0.1 formats)
-                conf_str = payload.get('confidence', '0%')
-                if isinstance(conf_str, str):
-                    conf_str = conf_str.rstrip('%')
-                    try:
-                        signal.confidence_pct = float(conf_str)
-                    except ValueError:
-                        signal.confidence_pct = confidence
-                else:
-                    signal.confidence_pct = float(conf_str) * 100 if conf_str < 1 else conf_str
-
-                # Parse range
-                range_str = payload.get('range', '0-0')
-                if '-' in range_str:
-                    try:
-                        min_str, max_str = range_str.split('-')
-                        signal.range_min = float(min_str.strip())
-                        signal.range_max = float(max_str.strip())
-                    except ValueError:
-                        pass
 
             return signal if signal.is_valid() else None
 
