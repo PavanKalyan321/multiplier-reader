@@ -20,6 +20,7 @@ from unified_region_selector import run_unified_gui
 from automated_trading import run_automated_trading
 from supabase_automated_trading import run_supabase_automated_trading
 from betting_helpers import demo_mode_simple_bet, demo_mode_real_multiplier, demo_mode_continuous
+from pycaret_signal_listener import PyCaretSignalListener
 
 
 class Colors:
@@ -725,6 +726,68 @@ def demo_mode():
         input("\nPress Enter to return to menu...")
 
 
+def pycaret_trading():
+    """Start PyCaret signal listener for analytics_round_signals"""
+    try:
+        config = load_game_config()
+
+        if not config or not config.is_valid():
+            print("\n" + "!" * 60)
+            print("Configuration is not complete!".center(60))
+            print("!" * 60)
+            print("\nPlease configure the regions first (option 2).")
+            input("\nPress Enter to return to menu...")
+            return
+
+        print("\n" + "=" * 60)
+        print("PyCaret Signal Listener".center(60))
+        print("=" * 60)
+
+        # Get poll interval from user
+        poll_interval_input = input("Enter polling interval in seconds (default: 2): ").strip()
+        try:
+            poll_interval = float(poll_interval_input) if poll_interval_input else 2.0
+        except ValueError:
+            poll_interval = 2.0
+
+        print(f"\nStarting PyCaret listener...")
+        print(f"Poll Interval: {poll_interval}s")
+        print(f"Listening for analytics_round_signals table updates...")
+        print(f"Press Ctrl+C to stop\n")
+
+        # Initialize components
+        screen_capture = ScreenCapture(config.multiplier_region)
+        multiplier_reader = MultiplierReader(screen_capture)
+        game_actions = GameActions(config.bet_button_point)
+
+        # Create and start listener
+        listener = PyCaretSignalListener(game_actions, multiplier_reader)
+
+        # Run listener
+        asyncio.run(listener.listen(poll_interval=poll_interval))
+
+    except KeyboardInterrupt:
+        print("\n\nPyCaret listener stopped by user.")
+        if 'listener' in locals():
+            listener.stop()
+            stats = listener.get_stats()
+            print("\n" + "=" * 60)
+            print("PyCaret Listener Statistics".center(60))
+            print("=" * 60)
+            print(f"Total Executions:   {stats['execution_count']}")
+            print(f"Successful Trades:  {stats['successful_trades']}")
+            print(f"Failed Trades:      {stats['failed_trades']}")
+            print(f"Success Rate:       {stats['success_rate']:.1f}%")
+            print("=" * 60)
+    except Exception as e:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        input("\nPress Enter to return to menu...")
+
+
 def main():
     """Main entry point with menu system"""
     # Migrate old config if needed
@@ -769,6 +832,9 @@ def main():
 
         elif action == 'demo':
             demo_mode()
+
+        elif action == 'pycaret':
+            pycaret_trading()
 
         elif action == 'exit':
             timestamp = datetime.now().strftime("%H:%M:%S")

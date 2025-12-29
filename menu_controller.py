@@ -59,7 +59,11 @@ class MenuController:
         print("   - Run automated demo: stake 10, cashout at 1.3x multiplier")
         print()
 
-        print("7. Exit")
+        print("7. PyCaret Signal Listener")
+        print("   - Listen to analytics_round_signals and execute PyCaret predictions")
+        print()
+
+        print("8. Exit")
         print("   - Close the application")
         print()
 
@@ -69,27 +73,27 @@ class MenuController:
         """Get user menu choice with validation
 
         Returns:
-            int: Menu choice (1-7)
+            int: Menu choice (1-8)
         """
         while True:
             try:
-                choice = input("\nEnter your choice (1-7): ").strip()
+                choice = input("\nEnter your choice (1-8): ").strip()
 
-                if choice not in ['1', '2', '3', '4', '5', '6', '7']:
-                    print("Invalid choice. Please enter 1, 2, 3, 4, 5, 6, or 7.")
+                if choice not in ['1', '2', '3', '4', '5', '6', '7', '8']:
+                    print("Invalid choice. Please enter 1, 2, 3, 4, 5, 6, 7, or 8.")
                     continue
 
                 return int(choice)
 
             except (ValueError, KeyboardInterrupt):
-                print("Invalid input. Please enter a number between 1 and 7.")
+                print("Invalid input. Please enter a number between 1 and 8.")
                 continue
 
     def run(self) -> str:
         """Run the menu and return selected action
 
         Returns:
-            str: Action to perform ('monitor', 'configure', 'test', 'websocket', 'supabase', 'demo', or 'exit')
+            str: Action to perform ('monitor', 'configure', 'test', 'websocket', 'supabase', 'demo', 'pycaret', or 'exit')
         """
         self.display_menu()
         choice = self.get_user_choice()
@@ -123,6 +127,9 @@ class MenuController:
             return 'demo'
 
         elif choice == 7:
+            return 'pycaret'
+
+        elif choice == 8:
             return 'exit'
 
     def print_section_header(self, title):
