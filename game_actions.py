@@ -3,6 +3,10 @@ import pyautogui
 import time
 from datetime import datetime
 from config import PointConfig
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from multiplier_reader import MultiplierReader
 
 
 class GameActions:
@@ -64,6 +68,56 @@ class GameActions:
             self.click_stats['total_clicks'] += 1
             self.click_stats['failed_clicks'] += 1
 
+            return False
+
+    def wait_for_round_end(self, multiplier_reader: "MultiplierReader", max_wait_seconds: float = 120) -> bool:
+        """Wait for current round to end before placing a bet
+
+        Args:
+            multiplier_reader: MultiplierReader instance to check multiplier
+            max_wait_seconds: Maximum time to wait (default 2 minutes)
+
+        Returns:
+            bool: True if round ended or no active round, False if timeout
+        """
+        try:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+
+            # Check if a round is currently active
+            current_mult = multiplier_reader.read_multiplier()
+            if current_mult is None or current_mult <= 1.0:
+                print(f"[{timestamp}] INFO: No active round. Ready to place bet.")
+                return True
+
+            print(f"[{timestamp}] INFO: Round is active at {current_mult:.2f}x. Waiting for it to end...")
+
+            # Wait for round to end (multiplier <= 1.0 or becomes None)
+            start_time = time.time()
+            last_display = start_time
+
+            while time.time() - start_time < max_wait_seconds:
+                try:
+                    mult = multiplier_reader.read_multiplier()
+                    if mult is None or mult <= 1.0:
+                        print(f"[{timestamp}] INFO: Previous round ended. Ready to place new bet.")
+                        return True
+
+                    # Display status every 1 second
+                    if time.time() - last_display >= 1.0:
+                        elapsed = time.time() - start_time
+                        print(f"[{timestamp}] INFO: Waiting... Current: {mult:.2f}x (Elapsed: {elapsed:.1f}s)")
+                        last_display = time.time()
+                except:
+                    pass
+
+                time.sleep(0.2)
+
+            print(f"[{timestamp}] WARNING: Timeout waiting for round to end (waited {max_wait_seconds}s)")
+            return False
+
+        except Exception as e:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"[{timestamp}] ERROR: Failed to wait for round end: {e}")
             return False
 
     def click_bet_button(self) -> bool:

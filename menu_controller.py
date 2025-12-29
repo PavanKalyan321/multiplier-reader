@@ -55,7 +55,11 @@ class MenuController:
         print("   - Connect to Supabase database for automated trading")
         print()
 
-        print("6. Exit")
+        print("6. Demo Mode")
+        print("   - Run automated demo: stake 10, cashout at 1.3x multiplier")
+        print()
+
+        print("7. Exit")
         print("   - Close the application")
         print()
 
@@ -65,27 +69,27 @@ class MenuController:
         """Get user menu choice with validation
 
         Returns:
-            int: Menu choice (1-6)
+            int: Menu choice (1-7)
         """
         while True:
             try:
-                choice = input("\nEnter your choice (1-6): ").strip()
+                choice = input("\nEnter your choice (1-7): ").strip()
 
-                if choice not in ['1', '2', '3', '4', '5', '6']:
-                    print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
+                if choice not in ['1', '2', '3', '4', '5', '6', '7']:
+                    print("Invalid choice. Please enter 1, 2, 3, 4, 5, 6, or 7.")
                     continue
 
                 return int(choice)
 
             except (ValueError, KeyboardInterrupt):
-                print("Invalid input. Please enter a number between 1 and 6.")
+                print("Invalid input. Please enter a number between 1 and 7.")
                 continue
 
     def run(self) -> str:
         """Run the menu and return selected action
 
         Returns:
-            str: Action to perform ('monitor', 'configure', 'test', 'websocket', 'supabase', or 'exit')
+            str: Action to perform ('monitor', 'configure', 'test', 'websocket', 'supabase', 'demo', or 'exit')
         """
         self.display_menu()
         choice = self.get_user_choice()
@@ -116,6 +120,9 @@ class MenuController:
             return 'supabase'
 
         elif choice == 6:
+            return 'demo'
+
+        elif choice == 7:
             return 'exit'
 
     def print_section_header(self, title):

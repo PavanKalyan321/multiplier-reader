@@ -163,6 +163,20 @@ class SupabaseExecutor:
         )
 
         try:
+            # Wait for current round to end before placing bet
+            record.status = "waiting_for_round"
+            self._log(f"Waiting for current round to end before placing bet for round {signal.round_id}...", "INFO")
+
+            round_ready = self.game_actions.wait_for_round_end(self.multiplier_reader, max_wait_seconds=120)
+
+            if not round_ready:
+                record.status = "failed"
+                record.error_message = "Timeout waiting for previous round to end"
+                self._log("Timeout waiting for previous round to end", "WARNING")
+                self.failed_trades += 1
+                self.execution_records.append(record)
+                return record
+
             # Place bet
             record.status = "placing_bet"
             self._log(f"Placing bet for round {signal.round_id}...", "INFO")

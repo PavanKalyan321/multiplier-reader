@@ -18,6 +18,7 @@ from menu_controller import MenuController
 from unified_region_selector import run_unified_gui
 from automated_trading import run_automated_trading
 from supabase_automated_trading import run_supabase_automated_trading
+from betting_helpers import demo_mode_simple_bet, demo_mode_real_multiplier, demo_mode_continuous
 
 
 class Colors:
@@ -629,6 +630,92 @@ def supabase_trading():
         input("\nPress Enter to return to menu...")
 
 
+def demo_mode():
+    """Run continuous demo mode betting with REAL multiplier monitoring and AUTO-CASHOUT"""
+    try:
+        config = load_game_config()
+
+        if not config or not config.is_valid():
+            print("\n" + "!" * 60)
+            print("Configuration is not complete!".center(60))
+            print("!" * 60)
+            print("\nPlease configure the regions first (option 2).")
+            input("\nPress Enter to return to menu...")
+            return
+
+        print("\n" + "=" * 60)
+        print("CONTINUOUS DEMO MODE - AUTO-CASHOUT".center(60))
+        print("=" * 60)
+        print("\nContinuous demo mode will:")
+        print("  1. Run multiple rounds automatically")
+        print("  2. Set stake to 10 per round")
+        print("  3. Place bets and monitor REAL multiplier")
+        print("  4. AUTO-CLICK cashout when multiplier reaches 1.3x")
+        print("  5. Display results and summary")
+        print()
+
+        # Get number of rounds from user
+        try:
+            rounds_input = input("Enter number of rounds (default 3): ").strip()
+            num_rounds = int(rounds_input) if rounds_input else 3
+            if num_rounds < 1:
+                num_rounds = 3
+        except ValueError:
+            num_rounds = 3
+
+        # Initialize stats
+        stats = {
+            'rounds_played': 0,
+            'ml_bets_placed': 0,
+            'total_bet': 0
+        }
+
+        # Initialize multiplier reader to read REAL multiplier values
+        screen_capture = ScreenCapture(config.multiplier_region)
+        multiplier_reader = MultiplierReader(screen_capture)
+
+        print(f"\nInitializing continuous demo with {num_rounds} rounds...")
+        print()
+
+        # Run continuous demo mode with AUTO-CASHOUT
+        result = demo_mode_continuous(
+            stake_coords=(config.bet_button_point.x, config.bet_button_point.y - 100),
+            bet_button_coords=(config.bet_button_point.x, config.bet_button_point.y),
+            cashout_coords=(config.bet_button_point.x, config.bet_button_point.y),
+            detector=None,
+            stats=stats,
+            multiplier_reader=multiplier_reader,
+            demo_stake=10,
+            target_multiplier=1.3,
+            num_rounds=num_rounds
+        )
+
+        print("\n" + "=" * 60)
+        print("CONTINUOUS DEMO SUMMARY".center(60))
+        print("=" * 60)
+        summary = result.get('summary', {})
+        print(f"Total Rounds:       {result['num_rounds']}")
+        print(f"Successful Cashouts: {summary.get('wins', 0)}")
+        print(f"Failed Rounds:      {summary.get('losses', 0)}")
+        print(f"Win Rate:           {summary.get('win_rate', 0):.1f}%")
+        print(f"Total Bet:          {summary.get('total_bet', 0)}")
+        print(f"Total Winnings:     {summary.get('total_winnings', 0):.2f}")
+        print(f"Total Profit:       {summary.get('total_profit', 0):.2f}")
+        print(f"Mode:               Continuous AUTO-CASHOUT")
+        print("=" * 60)
+        input("\nPress Enter to return to menu...")
+
+    except KeyboardInterrupt:
+        print("\n\nDemo mode stopped by user.")
+    except Exception as e:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        input("\nPress Enter to return to menu...")
+
+
 def main():
     """Main entry point with menu system"""
     # Migrate old config if needed
@@ -670,6 +757,9 @@ def main():
 
         elif action == 'supabase':
             supabase_trading()
+
+        elif action == 'demo':
+            demo_mode()
 
         elif action == 'exit':
             timestamp = datetime.now().strftime("%H:%M:%S")

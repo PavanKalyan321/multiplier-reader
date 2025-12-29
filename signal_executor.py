@@ -93,7 +93,16 @@ class SignalExecutor:
             # Check if bet should be placed
             if signal.action == SignalAction.PLACE_BET and signal.bet:
                 record.status = ExecutionStatus.WAITING_FOR_ROUND
-                self._log(f"Waiting for round {signal.round_id} to start", "INFO")
+                self._log(f"Waiting for current round to end before placing bet for round {signal.round_id}", "INFO")
+
+                # Wait for current round to end (if one is active)
+                round_ready = self.game_actions.wait_for_round_end(self.multiplier_reader, max_wait_seconds=120)
+
+                if not round_ready:
+                    record.status = ExecutionStatus.FAILED
+                    record.error_message = "Timeout waiting for previous round to end"
+                    self._log("Timeout waiting for previous round to end", "ERROR")
+                    return record
 
                 # Place bet
                 self._log(f"Placing bet for round {signal.round_id}", "INFO")

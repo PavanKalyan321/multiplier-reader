@@ -47,7 +47,17 @@
       "Bash(output_test.txt )",
       "Bash(test_region.png )",
       "Bash(test_region_processed.png )",
-      "Bash(test_region_raw.png)"
+      "Bash(test_region_raw.png)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(timeout 20 python:*)",
+      "Bash(git branch:*)",
+      "Bash(for f in betting_helpers.py BETTING_HELPERS*.md BETTING_HELPERS*.txt betting_helpers_examples.py)",
+      "Bash(do if [ -f \"$f\" ])",
+      "Bash(then wc -l \"$f\")",
+      "Bash(grep:*)"
     ]
   }
 }
