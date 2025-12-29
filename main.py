@@ -750,8 +750,16 @@ def pycaret_trading():
         except ValueError:
             poll_interval = 2.0
 
+        # Get max retries from user
+        retries_input = input("Enter max retries per signal (default: 3): ").strip()
+        try:
+            max_retries = int(retries_input) if retries_input else 3
+        except ValueError:
+            max_retries = 3
+
         print(f"\nStarting PyCaret listener...")
         print(f"Poll Interval: {poll_interval}s")
+        print(f"Max Retries: {max_retries}")
         print(f"Listening for analytics_round_signals table updates...")
         print(f"Press Ctrl+C to stop\n")
 
@@ -764,7 +772,7 @@ def pycaret_trading():
         listener = PyCaretSignalListener(game_actions, multiplier_reader)
 
         # Run listener
-        asyncio.run(listener.listen(poll_interval=poll_interval))
+        asyncio.run(listener.listen(poll_interval=poll_interval, max_retries=max_retries))
 
     except KeyboardInterrupt:
         print("\n\nPyCaret listener stopped by user.")

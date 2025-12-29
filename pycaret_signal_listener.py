@@ -254,14 +254,15 @@ class PyCaretSignalListener:
             self.failed_trades += 1
             return result
 
-    async def listen(self, poll_interval: float = 2.0):
+    async def listen(self, poll_interval: float = 2.0, max_retries: int = 3):
         """Listen to analytics_round_signals table for new entries
 
         Args:
             poll_interval: Time in seconds between database polls
+            max_retries: Maximum retries for extraction and execution
         """
         self.running = True
-        self._log(f"Starting listener (poll interval: {poll_interval}s)", "INFO")
+        self._log(f"Starting listener (poll interval: {poll_interval}s, max retries: {max_retries})", "INFO")
 
         while self.running:
             try:
@@ -273,15 +274,59 @@ class PyCaretSignalListener:
                 if response.data:
                     latest_signal = response.data[0]
                     signal_id = latest_signal.get("id")
+                    round_id = latest_signal.get("roundId")
 
                     # Process only if it's a new signal
                     if self.last_processed_id is None or signal_id > self.last_processed_id:
-                        self._log(f"New signal detected: Round {latest_signal.get('roundId')}", "INFO")
+                        self._log(f"New signal detected: Round {round_id}, ID: {signal_id}", "INFO")
                         self.last_processed_id = signal_id
 
-                        # Execute the signal
-                        result = await self.execute_pycaret_signal(latest_signal)
-                        self._log(f"Execution result: {result['status']}", "INFO")
+                        # Try to extract and execute PyCaret signal with retries
+                        execution_success = False
+                        for attempt in range(1, max_retries + 1):
+                            try:
+                                # Extract PyCaret prediction
+                                pycaret = self.extract_pycaret_prediction(latest_signal)
+
+                                if pycaret:
+                                    self._log(
+                                        f"PyCaret extracted (Attempt {attempt}/{max_retries}): "
+                                        f"Prediction: {pycaret.get('predicted_multiplier'):.2f}x, "
+                                        f"Confidence: {pycaret.get('confidence'):.0%}, "
+                                        f"Bet: {pycaret.get('bet')}",
+                                        "INFO"
+                                    )
+
+                                    # Execute the signal
+                                    result = await self.execute_pycaret_signal(latest_signal)
+                                    self._log(
+                                        f"Execution result for Round {round_id}: {result['status']} "
+                                        f"(Final: {result['final_multiplier']:.2f}x)",
+                                        "INFO"
+                                    )
+                                    execution_success = True
+                                    break
+                                else:
+                                    self._log(
+                                        f"PyCaret not found in signal (Attempt {attempt}/{max_retries})",
+                                        "WARNING"
+                                    )
+
+                            except Exception as e:
+                                self._log(
+                                    f"Extraction/Execution error on attempt {attempt}/{max_retries}: {e}",
+                                    "WARNING"
+                                )
+
+                            # Wait before retry
+                            if attempt < max_retries:
+                                await asyncio.sleep(1.0)
+
+                        if not execution_success:
+                            self._log(
+                                f"Failed to execute signal for Round {round_id} after {max_retries} attempts",
+                                "ERROR"
+                            )
 
                 # Wait before next poll
                 await asyncio.sleep(poll_interval)
