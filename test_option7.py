@@ -55,6 +55,7 @@ async def test_option7():
     print("Min Predicted:     1.3x")
     print("Min Range Start:   1.3x")
     print("Safety Margin:     80% (cashout at 0.8)")
+    print("Button Validation: COLOR-BASED (GREEN=ready, ORANGE=waiting)")
     print("Listening for analytics_round_signals table updates...")
     print("Press Ctrl+C to stop\n")
 
