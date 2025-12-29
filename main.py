@@ -457,7 +457,7 @@ class MultiplierReaderApp:
         self.print_status(multiplier, status, round_summary)
 
     def print_status(self, multiplier, status, round_summary):
-        """Print enhanced status with colors and sparkline"""
+        """Print enhanced status with colors and sparkline (reduced frequency)"""
         if round_summary['status'] == 'RUNNING' and 'current_multiplier' in round_summary:
             duration = round_summary['duration']
             max_mult = round_summary['max_multiplier']
@@ -469,29 +469,39 @@ class MultiplierReaderApp:
             if len(self.multiplier_history) > self.max_history:
                 self.multiplier_history.pop(0)
 
-            # Generate sparkline
-            sparkline = self.generate_sparkline(self.multiplier_history)
+            # Only print status every 2 seconds or on significant changes
+            # This reduces log spam while still showing progress
+            current_time = time.time()
+            if not hasattr(self, '_last_print_time'):
+                self._last_print_time = 0
 
-            # Get color based on multiplier
-            color = Colors.get_multiplier_color(current)
+            time_since_last_print = current_time - self._last_print_time
+            significant_change = max_mult != getattr(self, '_last_max_mult', 0)
 
-            # Build status line with columns
-            # Format: [TIME] R:X | CURR: X.XXx | MAX: X.XXx | DUR: X.Xs | TREND: sparkline
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            status_line = (
-                f"{Colors.GRAY}[{timestamp}]{Colors.RESET} "
-                f"{Colors.CYAN}R:{round_num+1}{Colors.RESET} | "
-                f"{Colors.BOLD}CURR:{Colors.RESET} {color}{current:5.2f}x{Colors.RESET} | "
-                f"{Colors.BOLD}MAX:{Colors.RESET} {Colors.MAGENTA}{max_mult:5.2f}x{Colors.RESET} | "
-                f"{Colors.BOLD}DUR:{Colors.RESET} {duration:5.1f}s | "
-                f"{Colors.BOLD}TREND:{Colors.RESET} {color}{sparkline}{Colors.RESET}"
-            )
+            # Print if: 2 seconds elapsed OR max multiplier changed
+            should_print = time_since_last_print >= 2.0 or significant_change
 
-            # Only print if values changed (compare without colors/timestamp)
-            status_key = f"{round_num}|{current:.2f}|{max_mult:.2f}|{duration:.1f}"
-            if status_key != self.last_status_msg:
+            if should_print:
+                # Generate sparkline
+                sparkline = self.generate_sparkline(self.multiplier_history)
+
+                # Get color based on multiplier
+                color = Colors.get_multiplier_color(current)
+
+                # Build status line with columns
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                status_line = (
+                    f"{Colors.GRAY}[{timestamp}]{Colors.RESET} "
+                    f"{Colors.CYAN}R:{round_num+1}{Colors.RESET} | "
+                    f"{Colors.BOLD}CURR:{Colors.RESET} {color}{current:5.2f}x{Colors.RESET} | "
+                    f"{Colors.BOLD}MAX:{Colors.RESET} {Colors.MAGENTA}{max_mult:5.2f}x{Colors.RESET} | "
+                    f"{Colors.BOLD}DUR:{Colors.RESET} {duration:5.1f}s | "
+                    f"{Colors.BOLD}TREND:{Colors.RESET} {color}{sparkline}{Colors.RESET}"
+                )
+
                 print(status_line)
-                self.last_status_msg = status_key
+                self._last_print_time = current_time
+                self._last_max_mult = max_mult
                 self.status_printed = True
 
     def print_stats(self):
