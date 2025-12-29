@@ -21,6 +21,7 @@ from automated_trading import run_automated_trading
 from supabase_automated_trading import run_supabase_automated_trading
 from betting_helpers import demo_mode_simple_bet, demo_mode_real_multiplier, demo_mode_continuous
 from pycaret_signal_listener import PyCaretSignalListener
+from model_realtime_listener import ModelRealtimeListener
 
 
 class Colors:
@@ -727,7 +728,7 @@ def demo_mode():
 
 
 def pycaret_trading():
-    """Start PyCaret signal listener for analytics_round_signals"""
+    """Start real-time model listener for analytics_round_signals (model-agnostic)"""
     try:
         config = load_game_config()
 
@@ -740,26 +741,63 @@ def pycaret_trading():
             return
 
         print("\n" + "=" * 60)
-        print("PyCaret Signal Listener".center(60))
+        print("Real-Time Model Signal Listener".center(60))
         print("=" * 60)
 
-        # Get poll interval from user
-        poll_interval_input = input("Enter polling interval in seconds (default: 2): ").strip()
-        try:
-            poll_interval = float(poll_interval_input) if poll_interval_input else 2.0
-        except ValueError:
-            poll_interval = 2.0
+        # Display available models
+        available_models = [
+            "PyCaret", "H2O_AutoML", "AutoSklearn", "LSTM_Model", "AutoGluon",
+            "RandomForest_AutoML", "CatBoost", "LightGBM_AutoML", "XGBoost_AutoML",
+            "MLP_NeuralNet", "TPOT_Genetic", "AutoKeras", "AutoPyTorch", "MLBox",
+            "TransmogrifAI", "Google_AutoML"
+        ]
 
-        # Get max retries from user
-        retries_input = input("Enter max retries per signal (default: 3): ").strip()
-        try:
-            max_retries = int(retries_input) if retries_input else 3
-        except ValueError:
-            max_retries = 3
+        print("\nAvailable Models:")
+        for i, model in enumerate(available_models, 1):
+            print(f"  {i}. {model}")
 
-        print(f"\nStarting PyCaret listener...")
-        print(f"Poll Interval: {poll_interval}s")
-        print(f"Max Retries: {max_retries}")
+        # Get model selection from user
+        while True:
+            model_input = input("\nEnter model name or number (default: PyCaret): ").strip()
+            if not model_input:
+                model_name = "PyCaret"
+                break
+            elif model_input.isdigit() and 1 <= int(model_input) <= len(available_models):
+                model_name = available_models[int(model_input) - 1]
+                break
+            elif model_input in available_models:
+                model_name = model_input
+                break
+            else:
+                print("Invalid model. Please enter a valid model name or number.")
+
+        # Get betting criteria from user
+        min_predicted_input = input("Enter min predicted multiplier (default: 1.3): ").strip()
+        try:
+            min_predicted = float(min_predicted_input) if min_predicted_input else 1.3
+        except ValueError:
+            min_predicted = 1.3
+
+        min_range_input = input("Enter min range start (default: 1.3): ").strip()
+        try:
+            min_range = float(min_range_input) if min_range_input else 1.3
+        except ValueError:
+            min_range = 1.3
+
+        safety_margin_input = input("Enter safety margin (0.0-1.0, default: 0.8): ").strip()
+        try:
+            safety_margin = float(safety_margin_input) if safety_margin_input else 0.8
+            safety_margin = max(0.0, min(1.0, safety_margin))  # Clamp to 0.0-1.0
+        except ValueError:
+            safety_margin = 0.8
+
+        print(f"\n" + "=" * 60)
+        print(f"Starting {model_name} Real-Time Listener")
+        print("=" * 60)
+        print(f"Model:             {model_name}")
+        print(f"Min Predicted:      {min_predicted}x")
+        print(f"Min Range Start:   {min_range}x")
+        print(f"Safety Margin:     {safety_margin * 100:.0f}% (cashout at {safety_margin})")
         print(f"Listening for analytics_round_signals table updates...")
         print(f"Press Ctrl+C to stop\n")
 
@@ -768,24 +806,48 @@ def pycaret_trading():
         multiplier_reader = MultiplierReader(screen_capture)
         game_actions = GameActions(config.bet_button_point)
 
-        # Create and start listener
-        listener = PyCaretSignalListener(game_actions, multiplier_reader)
+        # Load Supabase credentials
+        from supabase import create_client
+        from dotenv import load_dotenv
+        import os
+        load_dotenv()
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_ANON_KEY")
+
+        if not supabase_url or not supabase_key:
+            print("\nERROR: Supabase credentials not found in .env file")
+            input("\nPress Enter to return to menu...")
+            return
+
+        # Create and start real-time listener
+        listener = ModelRealtimeListener(
+            game_actions=game_actions,
+            multiplier_reader=multiplier_reader,
+            supabase_url=supabase_url,
+            supabase_key=supabase_key,
+            model_name=model_name,
+            min_predicted_multiplier=min_predicted,
+            min_range_start=min_range,
+            safety_margin=safety_margin
+        )
 
         # Run listener
-        asyncio.run(listener.listen(poll_interval=poll_interval, max_retries=max_retries))
+        asyncio.run(listener.listen())
 
     except KeyboardInterrupt:
-        print("\n\nPyCaret listener stopped by user.")
+        print("\n\nListener stopped by user.")
         if 'listener' in locals():
             listener.stop()
             stats = listener.get_stats()
             print("\n" + "=" * 60)
-            print("PyCaret Listener Statistics".center(60))
+            print("Listener Statistics".center(60))
             print("=" * 60)
-            print(f"Total Executions:   {stats['execution_count']}")
-            print(f"Successful Trades:  {stats['successful_trades']}")
-            print(f"Failed Trades:      {stats['failed_trades']}")
-            print(f"Success Rate:       {stats['success_rate']:.1f}%")
+            print(f"Total Executions:      {stats['execution_count']}")
+            print(f"Qualified Bets:        {stats['qualified_bets']}")
+            print(f"Successful Trades:     {stats['successful_trades']}")
+            print(f"Failed Trades:         {stats['failed_trades']}")
+            print(f"Qualification Rate:    {stats['qualification_rate']:.1f}%")
+            print(f"Success Rate:          {stats['success_rate']:.1f}%")
             print("=" * 60)
     except Exception as e:
         timestamp = datetime.now().strftime("%H:%M:%S")

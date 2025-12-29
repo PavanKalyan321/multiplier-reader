@@ -59,8 +59,8 @@ class MenuController:
         print("   - Run automated demo: stake 10, cashout at 1.3x multiplier")
         print()
 
-        print("7. PyCaret Signal Listener")
-        print("   - Listen to analytics_round_signals and execute PyCaret predictions")
+        print("7. Model Signal Listener")
+        print("   - Real-time listener for any AutoML model (PyCaret, XGBoost, CatBoost, etc.)")
         print()
 
         print("8. Exit")
