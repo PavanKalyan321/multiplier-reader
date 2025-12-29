@@ -8,12 +8,21 @@ from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
 from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
+from auto_refresh import AutoRefresher
+# Try importing advanced ML system first, then fall back to multi-model, then single model
 try:
-    from multi_model_predictor import MultiModelPredictor, ML_AVAILABLE
-    MULTI_MODEL_AVAILABLE = True
+    from ml_system.prediction_engine import PredictionEngine
+    from ml_system.config import MLSystemConfig
+    ADVANCED_ML_AVAILABLE = True
+    ML_AVAILABLE = True
 except ImportError:
-    MULTI_MODEL_AVAILABLE = False
-    from ml_predictor import CrashPredictor, ML_AVAILABLE
+    ADVANCED_ML_AVAILABLE = False
+    try:
+        from multi_model_predictor import MultiModelPredictor, ML_AVAILABLE
+        MULTI_MODEL_AVAILABLE = True
+    except ImportError:
+        MULTI_MODEL_AVAILABLE = False
+        from ml_predictor import CrashPredictor, ML_AVAILABLE
 
 
 class Colors:
@@ -48,7 +57,7 @@ class Colors:
 class MultiplierReaderApp:
     """Main application for monitoring game multiplier"""
 
-    def __init__(self, region=None, update_interval=0.5):
+    def __init__(self, region=None, update_interval=0.5, auto_refresh_interval=900):
         self.region = region or load_config() or get_default_region()
         self.update_interval = update_interval
         self.screen_capture = ScreenCapture(self.region)
@@ -62,19 +71,29 @@ class MultiplierReaderApp:
         self.multiplier_history = []  # Track last N multipliers for sparkline
         self.max_history = 10  # Keep last 10 values
 
+        # Initialize auto-refresher (15 minutes by default)
+        self.auto_refresher = AutoRefresher(self.region, refresh_interval=auto_refresh_interval)
+
         # Initialize Supabase logger
         self.supabase = SupabaseLogger(
             url='https://zofojiubrykbtmstfhzx.supabase.co',
             key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s'
         )
 
-        # Initialize ML predictor (use multi-model if available)
+        # Initialize ML predictor (try advanced ML first, then fallback)
         self.predictor = None
         self.current_prediction_ids = {}  # Track prediction IDs per model
         self.use_multi_model = False
+        self.use_advanced_ml = False
 
         if ML_AVAILABLE:
-            if MULTI_MODEL_AVAILABLE:
+            if ADVANCED_ML_AVAILABLE:
+                # Use advanced ML system (25+ models, hybrid strategy, patterns)
+                self.predictor = PredictionEngine(history_size=1000, min_rounds_for_prediction=5)
+                self.use_advanced_ml = True
+                self.use_multi_model = True  # Also enable multi-model flag for compatibility
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Advanced ML System initialized (25+ models)")
+            elif MULTI_MODEL_AVAILABLE:
                 self.predictor = MultiModelPredictor(history_size=1000, min_rounds_for_prediction=5)
                 self.use_multi_model = True
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Multi-Model Predictor initialized (5 models)")
@@ -107,8 +126,8 @@ class MultiplierReaderApp:
             return
 
         try:
-            # Fetch last 1000 rounds from Supabase
-            rounds = self.supabase.get_recent_rounds(limit=1000)
+            # Fetch ALL available rounds from Supabase (no limit)
+            rounds = self.supabase.get_recent_rounds(limit=None)
 
             if not rounds:
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: No historical data in Supabase, will collect from scratch")
@@ -208,9 +227,9 @@ class MultiplierReaderApp:
         print("=" * 80)
         print()
 
-        # Log the complete round history table
-        history_table = self.game_tracker.format_round_history_table(limit=None)
-        print(history_table)
+        # Log the complete round history table - DISABLED
+        # history_table = self.game_tracker.format_round_history_table(limit=None)
+        # print(history_table)
 
         # Step 1: Insert round data into Supabase (AviatorRound table)
         round_end_time = datetime.fromtimestamp(round_summary.end_time)
@@ -233,14 +252,15 @@ class MultiplierReaderApp:
             self.predictor.update_prediction_accuracy(round_summary.max_multiplier)
 
             # Calculate error for stats
-            if self.use_multi_model and self.predictor.last_predictions:
-                # Use ensemble prediction for error calculation
+            if self.use_multi_model and hasattr(self.predictor, 'last_predictions') and self.predictor.last_predictions:
+                # Use ensemble prediction for error calculation (multi-model)
                 for model_name, pred in self.predictor.last_predictions.items():
                     error = abs(pred['predicted_multiplier'] - round_summary.max_multiplier)
                     if 'prediction_errors' not in self.stats:
                         self.stats['prediction_errors'] = []
                     self.stats['prediction_errors'].append(error)
             elif hasattr(self.predictor, 'last_prediction') and self.predictor.last_prediction:
+                # Single model prediction
                 error = abs(self.predictor.last_prediction['predicted_multiplier'] - round_summary.max_multiplier)
                 if 'prediction_errors' not in self.stats:
                     self.stats['prediction_errors'] = []
@@ -298,8 +318,22 @@ class MultiplierReaderApp:
         # Make prediction (use adaptive lookback)
         lookback = min(5, len(self.predictor.round_history))
 
-        # Get predictions (multi-model or single)
-        if self.use_multi_model:
+        # Get predictions (advanced ML, multi-model, or single)
+        if self.use_advanced_ml:
+            # Advanced ML system (25+ models, hybrid strategy, patterns)
+            result = self.predictor.predict_all(lookback=lookback)
+            if not result:
+                return
+
+            ensemble = result['ensemble']
+            hybrid = result['hybrid_strategy']
+            all_predictions = result['all_predictions']
+            patterns = result['patterns']
+
+            # Display advanced predictions
+            self._display_advanced_predictions(next_round_number, ensemble, hybrid, all_predictions, patterns)
+
+        elif self.use_multi_model:
             predictions = self.predictor.predict_all(lookback=lookback)
             if not predictions:
                 return
@@ -366,14 +400,29 @@ class MultiplierReaderApp:
 
         # Save predictions to database
         if last_round_id and last_round_multiplier is not None:
-            if self.use_multi_model:
+            if self.use_advanced_ml:
+                # Save advanced multi-model predictions (25+ models, hybrid, patterns)
+                signal_id = self.supabase.insert_advanced_multi_model_signal(
+                    round_id=last_round_id,
+                    actual_multiplier=last_round_multiplier,
+                    ensemble_prediction=ensemble,
+                    hybrid_decision=hybrid,
+                    all_predictions=all_predictions,
+                    patterns=patterns,
+                    timestamp=round_timestamp
+                )
+
+                if signal_id:
+                    self.current_prediction_ids['advanced_multi_model'] = signal_id
+
+            elif self.use_multi_model:
                 # Save multi-model predictions (includes ensemble + all individual models)
-                all_predictions = [ensemble] + predictions
+                all_predictions_list = [ensemble] + predictions
 
                 signal_id = self.supabase.insert_multi_model_signal(
                     round_id=last_round_id,
                     actual_multiplier=last_round_multiplier,
-                    predictions=all_predictions,
+                    predictions=all_predictions_list,
                     timestamp=round_timestamp
                 )
 
@@ -416,6 +465,131 @@ class MultiplierReaderApp:
                     self.current_prediction_ids['single'] = signal_id
 
         self.stats['predictions_made'] += 1
+
+    def _display_advanced_predictions(self, round_num, ensemble, hybrid, all_predictions, patterns):
+        """Display advanced multi-model predictions with hybrid strategy and patterns"""
+        import numpy as np
+
+        print()
+        print("=" * 130)
+        print(f"{Colors.CYAN}{Colors.BOLD}ML PREDICTIONS FOR ROUND {round_num} (Advanced Multi-Model System - 16 AutoML Models){Colors.RESET}")
+        print("=" * 130)
+
+        # Display detailed table of ALL model predictions - DISABLED
+        # print(f"\n{Colors.BOLD}ALL MODEL PREDICTIONS - DETAILED VIEW{Colors.RESET}")
+        # print("-" * 130)
+        # print(f"{'Model Name':<30} {'Prediction':<12} {'Confidence':<12} {'Range':<22} {'Bet':<8}")
+        # print("-" * 130)
+
+        # Legacy Models - DISABLED
+        # if all_predictions.get('legacy'):
+        #     print(f"\n{Colors.YELLOW}[LEGACY MODELS]{Colors.RESET}")
+        #     for model in all_predictions['legacy']:
+        #         name = model.get('model_name', 'Unknown')
+        #         pred = model.get('predicted_multiplier', 0)
+        #         conf = model.get('confidence', 0) * 100
+        #         range_min, range_max = model.get('range', (0, 0))
+        #         bet = model.get('bet', False)
+        #         bet_color = Colors.GREEN if bet else Colors.RED
+        #         bet_str = f"{bet_color}{'YES' if bet else 'NO'}{Colors.RESET}"
+        #         pred_color = Colors.get_multiplier_color(pred)
+        #         print(f"{name:<30} {pred_color}{pred:>6.2f}x{Colors.RESET}      {conf:>5.0f}%        {range_min:>5.2f}x - {range_max:<6.2f}x   {bet_str}")
+
+        # AutoML Models - DISABLED
+        # if all_predictions.get('automl'):
+        #     print(f"\n{Colors.YELLOW}[AUTOML MODELS]{Colors.RESET}")
+        #     for model in all_predictions['automl']:
+        #         name = model.get('model_name', 'Unknown')
+        #         pred = model.get('predicted_multiplier', 0)
+        #         conf = model.get('confidence', 0) * 100
+        #         range_min, range_max = model.get('range', (0, 0))
+        #         bet = model.get('bet', False)
+        #         bet_color = Colors.GREEN if bet else Colors.RED
+        #         bet_str = f"{bet_color}{'YES' if bet else 'NO'}{Colors.RESET}"
+        #         pred_color = Colors.get_multiplier_color(pred)
+        #         print(f"{name:<30} {pred_color}{pred:>6.2f}x{Colors.RESET}      {conf:>5.0f}%        {range_min:>5.2f}x - {range_max:<6.2f}x   {bet_str}")
+
+        # Trained Models - DISABLED
+        # if all_predictions.get('trained'):
+        #     print(f"\n{Colors.YELLOW}[TRAINED MODELS]{Colors.RESET}")
+        #     for model in all_predictions['trained']:
+        #         name = model.get('model_name', 'Unknown')
+        #         pred = model.get('predicted_multiplier', 0)
+        #         conf = model.get('confidence', 0) * 100
+        #         range_min, range_max = model.get('range', (0, 0))
+        #         bet = model.get('bet', False)
+        #         bet_color = Colors.GREEN if bet else Colors.RED
+        #         bet_str = f"{bet_color}{'YES' if bet else 'NO'}{Colors.RESET}"
+        #         pred_color = Colors.get_multiplier_color(pred)
+        #         print(f"{name:<30} {pred_color}{pred:>6.2f}x{Colors.RESET}      {conf:>5.0f}%        {range_min:>5.2f}x - {range_max:<6.2f}x   {bet_str}")
+
+        # Binary Classifiers - DISABLED
+        # if all_predictions.get('classifiers'):
+        #     print(f"\n{Colors.YELLOW}[BINARY CLASSIFIERS]{Colors.RESET}")
+        #     for model in all_predictions['classifiers']:
+        #         name = model.get('model_name', 'Unknown')
+        #         target = model.get('target', 0)
+        #         prob = model.get('probability', model.get('confidence', 0)) * 100
+        #         bet = model.get('bet', False)
+        #         bet_color = Colors.GREEN if bet else Colors.RED
+        #         bet_str = f"{bet_color}{'YES' if bet else 'NO'}{Colors.RESET}"
+        #         print(f"{name:<30} Target:{target:.1f}x   Prob: {prob:>5.0f}%        N/A                    {bet_str}")
+
+        # print("-" * 130)
+
+        # Ensemble Summary
+        print(f"\n{Colors.BOLD}{Colors.YELLOW}ENSEMBLE PREDICTION:{Colors.RESET}")
+        print(f"  Multiplier: {Colors.get_multiplier_color(ensemble['predicted_multiplier'])}{ensemble['predicted_multiplier']:.2f}x{Colors.RESET}")
+        print(f"  Confidence: {ensemble['confidence'] * 100:.0f}%")
+        print(f"  Range: {ensemble['range'][0]:.2f}x - {ensemble['range'][1]:.2f}x")
+        total_models = sum(len(v) for v in all_predictions.values())
+        print(f"  Bet Consensus: {Colors.GREEN if ensemble['bet'] else Colors.RED}{ensemble['bet_votes']}/{total_models}{Colors.RESET} models recommend BET")
+
+        # Hybrid Strategy
+        print(f"\n{Colors.BOLD}{Colors.MAGENTA}HYBRID BETTING STRATEGY:{Colors.RESET}")
+        if hybrid['action'] == 'BET':
+            print(f"  Position: {hybrid['position']}")
+            print(f"  Action: {Colors.GREEN}{Colors.BOLD}BET{Colors.RESET}")
+            print(f"  Target: {Colors.YELLOW}{hybrid['target_multiplier']:.1f}x{Colors.RESET}")
+            print(f"  Confidence: {hybrid['confidence'] * 100:.0f}%")
+            print(f"  Reason: {hybrid['reason']}")
+        else:
+            print(f"  Action: {Colors.GRAY}SKIP{Colors.RESET}")
+            print(f"  Reason: {hybrid['reason']}")
+
+        # Pattern Detection
+        print(f"\n{Colors.BOLD}PATTERNS DETECTED:{Colors.RESET}")
+        for pattern_name, pattern_data in patterns.items():
+            if pattern_data.get('type'):
+                conf = pattern_data.get('confidence', 0) * 100
+                print(f"  {pattern_name.replace('_', ' ').title()}: {pattern_data['type']} ({conf:.0f}% confidence)")
+
+        # Summary Statistics
+        print(f"\n{Colors.BOLD}SUMMARY BY GROUP:{Colors.RESET}")
+        # Legacy - DISABLED
+        # if all_predictions.get('legacy'):
+        #     legacy = all_predictions['legacy']
+        #     legacy_avg = np.mean([m['predicted_multiplier'] for m in legacy])
+        #     legacy_bets = sum(1 for m in legacy if m.get('bet', False))
+        #     print(f"  Legacy ({len(legacy)} models):      Avg {legacy_avg:.2f}x,  Bets: {legacy_bets}/{len(legacy)}")
+
+        if all_predictions.get('automl'):
+            automl = all_predictions['automl']
+            automl_avg = np.mean([m['predicted_multiplier'] for m in automl])
+            automl_bets = sum(1 for m in automl if m.get('bet', False))
+            print(f"  AutoML ({len(automl)} models):     Avg {automl_avg:.2f}x,  Bets: {automl_bets}/{len(automl)}")
+
+        # Trained - DISABLED
+        # if all_predictions.get('trained'):
+        #     trained = all_predictions['trained']
+        #     trained_avg = np.mean([m['predicted_multiplier'] for m in trained])
+        #     trained_bets = sum(1 for m in trained if m.get('bet', False))
+        #     print(f"  Trained ({len(trained)} models):      Avg {trained_avg:.2f}x,  Bets: {trained_bets}/{len(trained)}")
+
+        print()
+        print(f"{Colors.BOLD}FINAL RECOMMENDATION: {Colors.GREEN if hybrid['action'] == 'BET' else Colors.GRAY}{hybrid['action']}{Colors.RESET}")
+        print("=" * 130)
+        print()
 
     def update_step(self):
         """Single update step"""
@@ -535,13 +709,13 @@ class MultiplierReaderApp:
 
         print()
 
-        # Print round history
-        if self.game_tracker.round_history:
-            history_table = self.game_tracker.format_round_history_table(limit=None)
-            print(history_table)
-        else:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            print(f"[{timestamp}] WARNING: No completed rounds yet.")
+        # Print round history - DISABLED
+        # if self.game_tracker.round_history:
+        #     history_table = self.game_tracker.format_round_history_table(limit=None)
+        #     print(history_table)
+        # else:
+        #     timestamp = datetime.now().strftime("%H:%M:%S")
+        #     print(f"[{timestamp}] WARNING: No completed rounds yet.")
 
         print()
 
@@ -560,6 +734,9 @@ class MultiplierReaderApp:
         print(f"[{timestamp}] INFO: Press Ctrl+C to stop")
         print()
 
+        # Start auto-refresher
+        self.auto_refresher.start()
+
         print(f"[{datetime.now().strftime('%H:%M:%S')}] STATUS: WAITING for first round...")
 
         try:
@@ -570,6 +747,10 @@ class MultiplierReaderApp:
             print("\n")
             timestamp = datetime.now().strftime("%H:%M:%S")
             print(f"[{timestamp}] WARNING: Stopping multiplier reader...")
+
+            # Stop auto-refresher
+            self.auto_refresher.stop()
+
             self.print_stats()
 
 if __name__ == "__main__":

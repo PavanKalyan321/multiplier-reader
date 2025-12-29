@@ -5,3 +5,12 @@ numpy>=1.26.0
 supabase>=2.0.0
 scikit-learn>=1.3.0
 joblib>=1.3.0
+pyautogui>=0.9.54
+
+# Advanced ML System Dependencies
+lightgbm>=4.0.0              # For LGBM AutoML and Trained models
+imbalanced-learn>=0.11.0     # For SMOTE in binary classifiers
+
+# Optional Dependencies (for enhanced models)
+# tensorflow>=2.13.0         # Uncomment for LSTM model support
+# keras>=2.13.0              # Uncomment for AutoKeras support

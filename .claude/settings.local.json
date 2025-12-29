@@ -53,7 +53,8 @@
       "Bash(python.exe:*)",
       "Bash(git checkout:*)",
       "Bash(git config:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(find:*)"
     ]
   }
 }

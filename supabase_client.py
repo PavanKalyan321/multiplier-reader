@@ -102,23 +102,23 @@ class SupabaseLogger:
             return None
 
         try:
-            # Build payload structure
+            # Build payload structure (rounded to 1 decimal)
             import json
             payload = {
                 'modelName': model_name,
                 'id': round_id,  # Using round_id as the reference
-                'expectedOutput': predicted_multiplier,
+                'expectedOutput': round(predicted_multiplier, 1),
                 'confidence': f"{confidence * 100:.0f}%",
-                'range': f"{prediction_range[0]:.2f}-{prediction_range[1]:.2f}"
+                'range': f"{prediction_range[0]:.1f}-{prediction_range[1]:.1f}"
             }
 
             # Prepare data matching analytics_round_signals schema
             data = {
                 'round_id': round_id,
-                'multiplier': float(actual_multiplier),  # Actual multiplier from last round
+                'multiplier': round(actual_multiplier, 1),  # Actual multiplier from last round
                 'model_name': model_name,
                 'model_output': model_output or {},
-                'confidence': float(confidence),
+                'confidence': round(confidence, 2),  # Round confidence to 2 decimals (0.XX)
                 'metadata': metadata or {},
                 'payload': json.dumps(payload)  # Store prediction structure as JSON text
             }
@@ -133,7 +133,7 @@ class SupabaseLogger:
             # Extract signal id from response
             if response.data and len(response.data) > 0:
                 signal_id = response.data[0].get('id')
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Analytics signal saved (ID: {signal_id}, round: {round_id}, actual: {actual_multiplier:.2f}x, predicted: {predicted_multiplier:.2f}x)")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Analytics signal saved (ID: {signal_id}, round: {round_id}, actual: {actual_multiplier:.1f}x, predicted: {predicted_multiplier:.1f}x)")
                 return signal_id
 
             return None
@@ -162,14 +162,14 @@ class SupabaseLogger:
         try:
             import json
 
-            # Build payload with all model predictions
+            # Build payload with all model predictions (rounded to 1 decimal)
             payload_models = []
             for pred in predictions:
                 model_data = {
                     'modelName': pred['model_name'],
-                    'expectedOutput': pred['predicted_multiplier'],
+                    'expectedOutput': round(pred['predicted_multiplier'], 1),
                     'confidence': f"{pred['confidence'] * 100:.0f}%",
-                    'range': f"{pred['range'][0]:.2f}-{pred['range'][1]:.2f}",
+                    'range': f"{pred['range'][0]:.1f}-{pred['range'][1]:.1f}",
                     'bet': pred.get('bet', False)  # Include betting flag
                 }
                 payload_models.append(model_data)
@@ -177,7 +177,7 @@ class SupabaseLogger:
             # Overall payload structure
             payload = {
                 'roundId': round_id,
-                'actualMultiplier': actual_multiplier,
+                'actualMultiplier': round(actual_multiplier, 1),
                 'models': payload_models,
                 'timestamp': datetime.now().isoformat()
             }
@@ -221,12 +221,128 @@ class SupabaseLogger:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] WARNING: Failed to save multi-model signal: {e}")
             return None
 
-    def get_recent_rounds(self, limit: int = 1000):
+    def insert_advanced_multi_model_signal(
+        self,
+        round_id: int,
+        actual_multiplier: float,
+        ensemble_prediction: dict,
+        hybrid_decision: dict,
+        all_predictions: dict,
+        patterns: dict,
+        timestamp: datetime = None
+    ):
+        """
+        Insert analytics signal with advanced multi-model predictions (25+ models).
+
+        Args:
+            round_id: The roundId from AviatorRound table
+            actual_multiplier: The actual multiplier from the last round
+            ensemble_prediction: Ensemble prediction dictionary
+            hybrid_decision: Hybrid strategy decision dictionary
+            all_predictions: All model predictions grouped by type
+            patterns: Pattern detection results
+            timestamp: Optional timestamp
+
+        Returns:
+            int: signal id if successful, None otherwise
+        """
+        if not self.enabled:
+            return None
+
+        try:
+            import json
+
+            def round_floats(obj, decimals=1):
+                """Recursively round all float values to specified decimal places"""
+                if isinstance(obj, float):
+                    return round(obj, decimals)
+                elif isinstance(obj, dict):
+                    return {k: round_floats(v, decimals) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [round_floats(item, decimals) for item in obj]
+                elif isinstance(obj, tuple):
+                    return tuple(round_floats(item, decimals) for item in obj)
+                else:
+                    return obj
+
+            # Round all predictions to 1 decimal place
+            ensemble_rounded = round_floats(ensemble_prediction, 1)
+            hybrid_rounded = round_floats(hybrid_decision, 1)
+            predictions_rounded = round_floats(all_predictions, 1)
+            patterns_rounded = round_floats(patterns, 1)
+
+            # Build comprehensive payload
+            payload = {
+                'modelVersion': 'advanced_v1',
+                'roundId': int(round_id),
+                'actualMultiplier': round(actual_multiplier, 1),
+                'timestamp': datetime.now().isoformat(),
+                'ensemble': ensemble_rounded,
+                'hybridStrategy': hybrid_rounded,
+                'modelPredictions': {
+                    'legacy': predictions_rounded.get('legacy', []),
+                    'automl': predictions_rounded.get('automl', []),
+                    'trained': predictions_rounded.get('trained', []),
+                    'classifiers': predictions_rounded.get('classifiers', [])
+                },
+                'patterns': patterns_rounded
+            }
+
+            # Calculate summary statistics
+            total_models = sum(len(v) for v in all_predictions.values())
+            total_bet_votes = sum(
+                sum(1 for model in models if model.get('bet', False))
+                for models in all_predictions.values()
+            )
+
+            # Prepare data
+            data = {
+                'round_id': int(round_id),
+                'multiplier': float(actual_multiplier),
+                'model_name': 'AdvancedMultiModel',
+                'model_output': {
+                    'version': 'advanced_v1',
+                    'total_models': int(total_models),
+                    'model_groups': {k: len(v) for k, v in all_predictions.items()},
+                    'hybrid_position': hybrid_decision.get('position')
+                },
+                'confidence': float(ensemble_prediction.get('confidence', 0.5)),
+                'metadata': {
+                    'total_bet_votes': int(total_bet_votes),
+                    'patterns_detected': [k for k, v in patterns.items() if v.get('detected', True)],
+                    'hybrid_action': hybrid_decision.get('action'),
+                    'hybrid_target': hybrid_decision.get('target_multiplier')
+                },
+                'payload': json.dumps(payload)
+            }
+
+            if timestamp:
+                data['created_at'] = timestamp.isoformat()
+
+            # Insert
+            response = self.client.table('analytics_round_signals').insert(data).execute()
+
+            if response.data and len(response.data) > 0:
+                signal_id = response.data[0].get('id')
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Advanced multi-model signal saved (ID: {signal_id})")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Models: {total_models} total, {total_bet_votes} vote BET")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Hybrid: Position {hybrid_decision.get('position', 'None')} - {hybrid_decision.get('action')}")
+                return signal_id
+
+            return None
+
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] WARNING: Failed to save advanced signal: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def get_recent_rounds(self, limit: int = None):
         """
         Fetch recent rounds from Supabase to initialize ML model
 
         Args:
-            limit (int): Number of recent rounds to fetch
+            limit (int): Number of recent rounds to fetch (None = fetch all available)
 
         Returns:
             list: List of round dictionaries, or empty list if failed
@@ -235,7 +351,13 @@ class SupabaseLogger:
             return []
 
         try:
-            response = self.client.table('AviatorRound').select('*').order('timestamp', desc=True).limit(limit).execute()
+            # Fetch all rounds if limit is None, otherwise use limit
+            query = self.client.table('AviatorRound').select('*').order('timestamp', desc=True)
+
+            if limit is not None:
+                query = query.limit(limit)
+
+            response = query.execute()
 
             if response.data:
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO: Fetched {len(response.data)} rounds from Supabase for ML training")
