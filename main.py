@@ -14,6 +14,7 @@ from supabase_client import SupabaseLogger
 from prediction_engine import PredictionEngine
 from analytics_client import AnalyticsClient
 from browser_refresh import BrowserRefresh
+from auto_refresher import AutoRefresher
 from menu_controller import MenuController
 from unified_region_selector import run_unified_gui
 from automated_trading import run_automated_trading
@@ -96,6 +97,9 @@ class MultiplierReaderApp:
 
         # Initialize browser refresh manager (refresh every 30 minutes)
         self.browser_refresh = BrowserRefresh(refresh_interval_minutes=30)
+
+        # Initialize auto-refresher (refresh every 15 minutes)
+        self.auto_refresher = AutoRefresher(self.region, refresh_interval=900)  # 900 seconds = 15 minutes
 
         self.stats = {
             'total_updates': 0,
@@ -461,6 +465,9 @@ class MultiplierReaderApp:
         print(f"[{timestamp}] INFO: Press Ctrl+C to stop")
         print()
 
+        # Start auto-refresher
+        self.auto_refresher.start()
+
         print(f"[{datetime.now().strftime('%H:%M:%S')}] STATUS: WAITING for first round...")
 
         try:
@@ -471,6 +478,8 @@ class MultiplierReaderApp:
             print("\n")
             timestamp = datetime.now().strftime("%H:%M:%S")
             print(f"[{timestamp}] WARNING: Stopping multiplier reader...")
+            # Stop auto-refresher
+            self.auto_refresher.stop()
             self.print_stats()
 
 def test_configuration():
