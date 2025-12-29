@@ -801,23 +801,23 @@ def pycaret_trading():
         print(f"Listening for analytics_round_signals table updates...")
         print(f"Press Ctrl+C to stop\n")
 
+        # Get Supabase credentials from user
+        supabase_url = input("\nEnter Supabase Project URL: ").strip()
+        if not supabase_url:
+            print("\nERROR: Supabase URL is required")
+            input("\nPress Enter to return to menu...")
+            return
+
+        supabase_key = input("Enter Supabase API Key: ").strip()
+        if not supabase_key:
+            print("\nERROR: Supabase API Key is required")
+            input("\nPress Enter to return to menu...")
+            return
+
         # Initialize components
         screen_capture = ScreenCapture(config.multiplier_region)
         multiplier_reader = MultiplierReader(screen_capture)
         game_actions = GameActions(config.bet_button_point)
-
-        # Load Supabase credentials
-        from supabase import create_client
-        from dotenv import load_dotenv
-        import os
-        load_dotenv()
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_ANON_KEY")
-
-        if not supabase_url or not supabase_key:
-            print("\nERROR: Supabase credentials not found in .env file")
-            input("\nPress Enter to return to menu...")
-            return
 
         # Create and start real-time listener
         listener = ModelRealtimeListener(
