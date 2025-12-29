@@ -1,57 +1,76 @@
-"""PyCaret signal listener - Listens to analytics_round_signals and executes PyCaret predictions"""
+"""PyCaret real-time listener using Supabase subscriptions"""
 import asyncio
 import time
-import json
 from datetime import datetime
-from typing import Optional, Dict, Any
-from supabase_client import SupabaseLogger
+from typing import Optional, Dict, Any, Callable
+from supabase.client import AsyncClient
+from supabase import create_client
 from multiplier_reader import MultiplierReader
 from game_actions import GameActions
 import pyautogui
 
 
-class PyCaretSignalListener:
-    """Listen to analytics_round_signals and execute PyCaret model predictions"""
+class PyCaretRealtimeListener:
+    """Listen to analytics_round_signals in real-time using Supabase subscriptions"""
 
-    def __init__(self, game_actions: GameActions, multiplier_reader: MultiplierReader):
-        """Initialize listener
+    def __init__(
+        self,
+        game_actions: GameActions,
+        multiplier_reader: MultiplierReader,
+        supabase_url: str,
+        supabase_key: str
+    ):
+        """Initialize real-time listener
 
         Args:
             game_actions: GameActions instance for clicking
             multiplier_reader: MultiplierReader instance for monitoring
+            supabase_url: Supabase project URL
+            supabase_key: Supabase anon/JWT key
         """
         self.game_actions = game_actions
         self.multiplier_reader = multiplier_reader
-        self.supabase = SupabaseLogger(
-            url='https://zofojiubrykbtmstfhzx.supabase.co',
-            key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s'
-        )
-        self.last_processed_id = None
+        self.supabase_url = supabase_url
+        self.supabase_key = supabase_key
+        self.client: Optional[AsyncClient] = None
+        self.channel = None
         self.running = False
         self.execution_count = 0
         self.successful_trades = 0
         self.failed_trades = 0
+        self.processing_signal = False
 
     def _log(self, message: str, level: str = "INFO"):
         """Log message with timestamp"""
         timestamp = datetime.now().strftime("%H:%M:%S")
-        print(f"[{timestamp}] PYCARET {level}: {message}")
+        print(f"[{timestamp}] PYCARET-RT {level}: {message}")
 
-    def extract_pycaret_prediction(self, signal_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def connect(self) -> bool:
+        """Connect to Supabase asynchronously
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Import here to avoid issues if not installed
+            from supabase.client import AsyncClient as AsyncSupabaseClient
+            self.client = AsyncSupabaseClient(self.supabase_url, self.supabase_key)
+            self._log("Connected to Supabase (async client)", "INFO")
+            return True
+        except Exception as e:
+            self._log(f"Failed to connect to Supabase: {e}", "ERROR")
+            return False
+
+    def extract_pycaret_prediction(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Extract PyCaret prediction from analytics_round_signals payload
 
         Args:
-            signal_data: Full signal from database
+            payload: Full signal payload from database
 
         Returns:
             Dict with prediction details or None if not found
         """
         try:
-            # Parse payload if it's a string
-            payload = signal_data
-            if isinstance(signal_data.get("payload"), str):
-                payload = json.loads(signal_data["payload"])
-
             # Look for PyCaret in modelPredictions.automl
             if "modelPredictions" not in payload or "automl" not in payload["modelPredictions"]:
                 return None
@@ -60,10 +79,10 @@ class PyCaretSignalListener:
                 if model.get("model_name") == "PyCaret":
                     return {
                         "model_name": "PyCaret",
-                        "predicted_multiplier": float(model.get("predicted_multiplier", 0)),
-                        "confidence": float(model.get("confidence", 0)),
-                        "range": model.get("range", [0, 0]),
-                        "strategy": model.get("strategy", "unknown"),
+                        "predicted_multiplier": model.get("predicted_multiplier"),
+                        "confidence": model.get("confidence"),
+                        "range": model.get("range"),
+                        "strategy": model.get("strategy"),
                         "bet": model.get("bet", False),
                         "timestamp": model.get("timestamp")
                     }
@@ -260,90 +279,107 @@ class PyCaretSignalListener:
             self.failed_trades += 1
             return result
 
-    async def listen(self, poll_interval: float = 2.0, max_retries: int = 3):
-        """Listen to analytics_round_signals table for new entries
+    async def on_signal_received(self, payload: Dict[str, Any]):
+        """Handle incoming signal from subscription
 
         Args:
-            poll_interval: Time in seconds between database polls
-            max_retries: Maximum retries for extraction and execution
+            payload: Signal payload from Supabase
         """
-        self.running = True
-        self._log(f"Starting listener (poll interval: {poll_interval}s, max retries: {max_retries})", "INFO")
+        try:
+            # Extract the actual data (Supabase sends it in specific format)
+            if "new" in payload:
+                signal_data = payload["new"]
+            else:
+                signal_data = payload
 
-        while self.running:
+            signal_id = signal_data.get("id")
+            round_id = signal_data.get("roundId")
+
+            self._log(f"New signal received: Round {round_id}, ID: {signal_id}", "INFO")
+
+            # Prevent concurrent signal processing
+            if self.processing_signal:
+                self._log(f"Already processing a signal, queuing this one", "WARNING")
+                return
+
+            self.processing_signal = True
+
             try:
-                # Query the latest signals
-                response = self.supabase.client.table("analytics_round_signals").select(
-                    "*"
-                ).order("id", desc=True).limit(1).execute()
+                # Extract and execute PyCaret signal
+                pycaret = self.extract_pycaret_prediction(signal_data)
 
-                if response.data:
-                    latest_signal = response.data[0]
-                    signal_id = latest_signal.get("id")
-                    round_id = latest_signal.get("roundId")
+                if pycaret:
+                    self._log(
+                        f"PyCaret extracted: "
+                        f"Prediction: {pycaret.get('predicted_multiplier'):.2f}x, "
+                        f"Confidence: {pycaret.get('confidence'):.0%}, "
+                        f"Bet: {pycaret.get('bet')}",
+                        "INFO"
+                    )
 
-                    # Process only if it's a new signal
-                    if self.last_processed_id is None or signal_id > self.last_processed_id:
-                        self._log(f"New signal detected: Round {round_id}, ID: {signal_id}", "INFO")
-                        self.last_processed_id = signal_id
+                    # Execute the signal
+                    result = await self.execute_pycaret_signal(signal_data)
+                    self._log(
+                        f"Execution result for Round {round_id}: {result['status']} "
+                        f"(Final: {result['final_multiplier']:.2f}x)",
+                        "INFO"
+                    )
+                else:
+                    self._log(
+                        f"PyCaret not found in signal for Round {round_id}",
+                        "WARNING"
+                    )
 
-                        # Try to extract and execute PyCaret signal with retries
-                        execution_success = False
-                        for attempt in range(1, max_retries + 1):
-                            try:
-                                # Extract PyCaret prediction
-                                pycaret = self.extract_pycaret_prediction(latest_signal)
+            finally:
+                self.processing_signal = False
 
-                                if pycaret:
-                                    self._log(
-                                        f"PyCaret extracted (Attempt {attempt}/{max_retries}): "
-                                        f"Prediction: {pycaret.get('predicted_multiplier'):.2f}x, "
-                                        f"Confidence: {pycaret.get('confidence'):.0%}, "
-                                        f"Bet: {pycaret.get('bet')}",
-                                        "INFO"
-                                    )
+        except Exception as e:
+            self._log(f"Error processing signal: {e}", "ERROR")
+            self.processing_signal = False
 
-                                    # Execute the signal
-                                    result = await self.execute_pycaret_signal(latest_signal)
-                                    self._log(
-                                        f"Execution result for Round {round_id}: {result['status']} "
-                                        f"(Final: {result['final_multiplier']:.2f}x)",
-                                        "INFO"
-                                    )
-                                    execution_success = True
-                                    break
-                                else:
-                                    self._log(
-                                        f"PyCaret not found in signal (Attempt {attempt}/{max_retries})",
-                                        "WARNING"
-                                    )
+    async def listen(self):
+        """Start listening to analytics_round_signals table in real-time"""
+        if not await self.connect():
+            return
 
-                            except Exception as e:
-                                self._log(
-                                    f"Extraction/Execution error on attempt {attempt}/{max_retries}: {e}",
-                                    "WARNING"
-                                )
+        self.running = True
+        self._log("Starting real-time listener", "INFO")
 
-                            # Wait before retry
-                            if attempt < max_retries:
-                                await asyncio.sleep(1.0)
+        try:
+            # Create channel for real-time updates
+            self.channel = self.client.channel("analytics-round-signals-channel")
 
-                        if not execution_success:
-                            self._log(
-                                f"Failed to execute signal for Round {round_id} after {max_retries} attempts",
-                                "ERROR"
-                            )
+            # Subscribe to INSERT events
+            self.channel.on_postgres_changes(
+                event="INSERT",
+                schema="public",
+                table="analytics_round_signals",
+                callback=lambda payload: asyncio.create_task(self.on_signal_received(payload))
+            )
 
-                # Wait before next poll
-                await asyncio.sleep(poll_interval)
+            # Subscribe asynchronously
+            await self.channel.subscribe()
 
-            except Exception as e:
-                self._log(f"Listen error: {e}", "ERROR")
-                await asyncio.sleep(poll_interval)
+            self._log("Subscribed to analytics_round_signals", "INFO")
 
-    def stop(self):
-        """Stop the listener"""
+            # Keep the listener running
+            while self.running:
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            self._log(f"Subscription error: {e}", "ERROR")
+        finally:
+            await self.stop()
+
+    async def stop(self):
+        """Stop the listener and clean up"""
         self.running = False
+        if self.channel:
+            try:
+                await self.channel.unsubscribe()
+                self._log("Unsubscribed from channel", "INFO")
+            except:
+                pass
         self._log("Listener stopped", "INFO")
 
     def get_stats(self) -> Dict[str, Any]:
