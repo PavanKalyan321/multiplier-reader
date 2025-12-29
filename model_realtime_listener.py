@@ -100,8 +100,8 @@ class ModelRealtimeListener:
             bool: True if successful, False otherwise
         """
         try:
-            from supabase.client import AsyncClient as AsyncSupabaseClient
-            self.client = AsyncSupabaseClient(self.supabase_url, self.supabase_key)
+            from supabase import create_async_client
+            self.client = await create_async_client(self.supabase_url, self.supabase_key)
             self._log("Connected to Supabase (async client)", "INFO")
             return True
         except Exception as e:
