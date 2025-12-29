@@ -258,6 +258,16 @@ class ModelRealtimeListener:
                 round_record.status = "failed"
                 round_record.error_message = f"{self.model_name} not found"
                 self._log(f"{self.model_name} prediction not found for round {round_id}", "WARNING")
+                # Debug: Check what's in signal_data
+                self._log(f"DEBUG: signal_data keys: {list(signal_data.keys())}", "DEBUG")
+                if "payload" in signal_data and isinstance(signal_data["payload"], str):
+                    try:
+                        payload_dict = json.loads(signal_data["payload"])
+                        if "modelPredictions" in payload_dict:
+                            models_found = [m.get("model_name") for m in payload_dict["modelPredictions"].get("automl", [])]
+                            self._log(f"DEBUG: Models in payload: {models_found}", "DEBUG")
+                    except:
+                        pass
                 self.failed_trades += 1
                 return result
 
@@ -441,14 +451,16 @@ class ModelRealtimeListener:
             payload: Signal payload from Supabase
         """
         try:
-            # Extract the actual data
-            if "new" in payload:
+            # Extract the actual data - Supabase sends it in 'data' -> 'record'
+            if "data" in payload and "record" in payload["data"]:
+                signal_data = payload["data"]["record"]
+            elif "new" in payload:
                 signal_data = payload["new"]
             else:
                 signal_data = payload
 
             signal_id = signal_data.get("id")
-            round_id = signal_data.get("round_id")
+            round_id = signal_data.get("round_id") or signal_data.get("roundId")
 
             self._log(f"New signal received: Round#{round_id}, Signal ID: {signal_id}", "INFO")
 
