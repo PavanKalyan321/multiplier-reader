@@ -1,4 +1,4 @@
-"""Enhanced PyCaret real-time listener with selective betting based on criteria"""
+"""Model-agnostic real-time listener with selective betting based on criteria"""
 import asyncio
 import time
 import json
@@ -38,8 +38,8 @@ class RoundRecord:
         )
 
 
-class PyCaretRealtimeEnhanced:
-    """Enhanced real-time listener with selective betting criteria"""
+class ModelRealtimeListener:
+    """Real-time listener with selective betting criteria (model-agnostic)"""
 
     def __init__(
         self,
@@ -47,17 +47,19 @@ class PyCaretRealtimeEnhanced:
         multiplier_reader: MultiplierReader,
         supabase_url: str,
         supabase_key: str,
+        model_name: str = "PyCaret",
         min_predicted_multiplier: float = 1.3,
         min_range_start: float = 1.3,
         safety_margin: float = 0.8
     ):
-        """Initialize enhanced real-time listener
+        """Initialize real-time listener
 
         Args:
             game_actions: GameActions instance for clicking
             multiplier_reader: MultiplierReader instance for monitoring
             supabase_url: Supabase project URL
             supabase_key: Supabase anon/JWT key
+            model_name: Name of model to extract (default: "PyCaret")
             min_predicted_multiplier: Minimum predicted multiplier to bet (default 1.3)
             min_range_start: Minimum range start to bet (default 1.3)
             safety_margin: Cashout at this % of predicted (default 0.8 = 20% buffer)
@@ -66,6 +68,7 @@ class PyCaretRealtimeEnhanced:
         self.multiplier_reader = multiplier_reader
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
+        self.model_name = model_name
         self.client: Optional[AsyncClient] = None
         self.channel = None
         self.running = False
@@ -88,7 +91,7 @@ class PyCaretRealtimeEnhanced:
     def _log(self, message: str, level: str = "INFO"):
         """Log message with timestamp"""
         timestamp = datetime.now().strftime("%H:%M:%S")
-        print(f"[{timestamp}] PYCARET-ENH {level}: {message}")
+        print(f"[{timestamp}] {self.model_name.upper()}-RT {level}: {message}")
 
     async def connect(self) -> bool:
         """Connect to Supabase asynchronously
@@ -105,8 +108,8 @@ class PyCaretRealtimeEnhanced:
             self._log(f"Failed to connect to Supabase: {e}", "ERROR")
             return False
 
-    def extract_pycaret_prediction(self, signal_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Extract PyCaret prediction from signal
+    def extract_model_prediction(self, signal_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Extract model prediction from signal
 
         Args:
             signal_data: Signal data from database
@@ -120,14 +123,14 @@ class PyCaretRealtimeEnhanced:
             if isinstance(signal_data.get("payload"), str):
                 payload = json.loads(signal_data["payload"])
 
-            # Look for PyCaret in modelPredictions.automl
+            # Look for model in modelPredictions.automl
             if "modelPredictions" not in payload or "automl" not in payload["modelPredictions"]:
                 return None
 
             for model in payload["modelPredictions"]["automl"]:
-                if model.get("model_name") == "PyCaret":
+                if model.get("model_name") == self.model_name:
                     return {
-                        "model_name": "PyCaret",
+                        "model_name": self.model_name,
                         "predicted_multiplier": float(model.get("predicted_multiplier", 0)),
                         "confidence": float(model.get("confidence", 0)),
                         "range": model.get("range", [0, 0]),
@@ -139,7 +142,7 @@ class PyCaretRealtimeEnhanced:
             return None
 
         except Exception as e:
-            self._log(f"Error extracting PyCaret prediction: {e}", "ERROR")
+            self._log(f"Error extracting {self.model_name} prediction: {e}", "ERROR")
             return None
 
     def check_bet_criteria(self, predicted_mult: float, range_min: float, range_max: float) -> tuple:
@@ -247,20 +250,20 @@ class PyCaretRealtimeEnhanced:
         }
 
         try:
-            # Extract PyCaret prediction
-            pycaret = self.extract_pycaret_prediction(signal_data)
-            if not pycaret:
+            # Extract model prediction
+            model_pred = self.extract_model_prediction(signal_data)
+            if not model_pred:
                 result["status"] = "failed"
-                result["error_message"] = "PyCaret prediction not found in payload"
+                result["error_message"] = f"{self.model_name} prediction not found in payload"
                 round_record.status = "failed"
-                round_record.error_message = "PyCaret not found"
-                self._log(f"PyCaret prediction not found for round {round_id}", "WARNING")
+                round_record.error_message = f"{self.model_name} not found"
+                self._log(f"{self.model_name} prediction not found for round {round_id}", "WARNING")
                 self.failed_trades += 1
                 return result
 
-            predicted_mult = pycaret.get("predicted_multiplier", 0)
-            confidence = pycaret.get("confidence", 0)
-            range_min, range_max = pycaret.get("range", [0, 0])
+            predicted_mult = model_pred.get("predicted_multiplier", 0)
+            confidence = model_pred.get("confidence", 0)
+            range_min, range_max = model_pred.get("range", [0, 0])
 
             # Update round record with prediction data
             round_record.predicted_multiplier = predicted_mult
