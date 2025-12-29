@@ -27,9 +27,9 @@ class MenuController:
         # Check if configuration exists
         config = load_game_config()
         if config and config.is_valid():
-            print("✓ Configuration: READY".ljust(60))
+            print("[OK] Configuration: READY".ljust(60))
         else:
-            print("✗ Configuration: NOT CONFIGURED".ljust(60))
+            print("[!!] Configuration: NOT CONFIGURED".ljust(60))
 
         print()
         print("-" * 60)
