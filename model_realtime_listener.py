@@ -3,11 +3,15 @@ import asyncio
 import time
 import json
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from supabase.client import AsyncClient
 from multiplier_reader import MultiplierReader
 from game_actions import GameActions
+from screen_capture import ScreenCapture
+from config import RegionConfig
 import pyautogui
+import numpy as np
+from PIL import ImageGrab
 
 
 class RoundRecord:
@@ -167,6 +171,85 @@ class ModelRealtimeListener:
         # All criteria met
         return True, f"Predicted {predicted_mult:.2f}x, Range [{range_min:.2f}, {range_max:.2f}] - QUALIFIED"
 
+    def get_button_color(self) -> Tuple[int, int, int]:
+        """Get the average color of the bet button area
+
+        Returns:
+            Tuple of (R, G, B) values representing the button color
+        """
+        try:
+            # Capture pixel at bet button coordinates
+            x, y = self.game_actions.bet_button_point.x, self.game_actions.bet_button_point.y
+
+            # Capture a small region around the button (30x30 pixels)
+            screenshot = ImageGrab.grab(bbox=(x - 15, y - 15, x + 15, y + 15))
+            pixels = np.array(screenshot)
+
+            # Get average color (convert from RGB to BGR for consistency)
+            avg_color = np.mean(pixels, axis=(0, 1))
+            return tuple(int(c) for c in avg_color)
+        except Exception as e:
+            self._log(f"Error getting button color: {e}", "WARNING")
+            return (0, 0, 0)
+
+    def check_button_state(self) -> str:
+        """Check the state of the bet button by its color
+
+        Returns:
+            'green' - Button is ready to place bet (bright green)
+            'orange' - Button is waiting (orange/amber color, bet already placed or round active)
+            'unknown' - Cannot determine state
+        """
+        try:
+            r, g, b = self.get_button_color()
+
+            # Green button: High green value, moderate red, low blue
+            # Typical green: R=0-100, G=180-255, B=0-100
+            if g > r + 50 and g > 150 and b < 150:
+                return 'green'
+
+            # Orange button: High red, high green, low blue
+            # Typical orange: R=200-255, G=140-200, B=0-100
+            elif r > 150 and g > 100 and g < r + 100 and b < 120:
+                return 'orange'
+
+            else:
+                self._log(f"DEBUG: Button color RGB({r}, {g}, {b})", "DEBUG")
+                return 'unknown'
+        except Exception as e:
+            self._log(f"Error checking button state: {e}", "WARNING")
+            return 'unknown'
+
+    def wait_for_button_ready(self, max_wait_seconds: int = 30) -> bool:
+        """Wait for bet button to be in green state (ready to place bet)
+
+        Args:
+            max_wait_seconds: Maximum time to wait for button to be ready
+
+        Returns:
+            bool: True if button became green, False if timeout
+        """
+        start_time = time.time()
+        check_interval = 0.5
+        last_log = start_time
+
+        while time.time() - start_time < max_wait_seconds:
+            state = self.check_button_state()
+
+            if state == 'green':
+                self._log("Bet button is GREEN - Ready to place bet!", "INFO")
+                return True
+
+            # Log every 2 seconds
+            if time.time() - last_log > 2:
+                self._log(f"Waiting for button to be green... (current: {state})", "DEBUG")
+                last_log = time.time()
+
+            time.sleep(check_interval)
+
+        self._log(f"Timeout waiting for button to be green (waited {max_wait_seconds}s)", "WARNING")
+        return False
+
     def add_round(self, round_id: int, signal_id: int) -> RoundRecord:
         """Add a new round to tracking array
 
@@ -320,6 +403,18 @@ class ModelRealtimeListener:
                 result["error_message"] = "Timeout waiting for previous round to end"
                 round_record.status = "failed"
                 self._log("Timeout waiting for round to end", "ERROR")
+                self.failed_trades += 1
+                return result
+
+            # Check button color - must be GREEN to place bet
+            self._log(f"Checking bet button state before placing bet...", "INFO")
+            button_ready = self.wait_for_button_ready(max_wait_seconds=30)
+
+            if not button_ready:
+                result["status"] = "failed"
+                result["error_message"] = "Bet button not in ready state (not green)"
+                round_record.status = "failed"
+                self._log("Bet button is not ready - aborting bet placement", "ERROR")
                 self.failed_trades += 1
                 return result
 
