@@ -2,6 +2,7 @@
 import time
 import sys
 import json
+import asyncio
 from datetime import datetime
 from config import load_config, get_default_region, load_game_config, GameConfig, migrate_old_config
 from screen_capture import ScreenCapture
@@ -15,6 +16,8 @@ from analytics_client import AnalyticsClient
 from browser_refresh import BrowserRefresh
 from menu_controller import MenuController
 from unified_region_selector import run_unified_gui
+from automated_trading import run_automated_trading
+from supabase_automated_trading import run_supabase_automated_trading
 
 
 class Colors:
@@ -332,21 +335,27 @@ class MultiplierReaderApp:
             # Get color based on multiplier
             color = Colors.get_multiplier_color(current)
 
-            # Build status line with columns (removed duration)
+            # Build status line with dynamic multiplier (updates on same line)
             # Format: [TIME] R:X | CURR: X.XXx MAX: X.XXx | TREND: sparkline
             timestamp = datetime.now().strftime("%H:%M:%S")
             status_line = (
-                f"{Colors.GRAY}[{timestamp}]{Colors.RESET} "
+                f"\r{Colors.GRAY}[{timestamp}]{Colors.RESET} "
                 f"{Colors.CYAN}R:{round_num+1}{Colors.RESET} | "
                 f"{Colors.BOLD}CURR:{Colors.RESET} {color}{current:5.2f}x{Colors.RESET} "
                 f"{Colors.BOLD}MAX:{Colors.RESET} {Colors.MAGENTA}{max_mult:5.2f}x{Colors.RESET} | "
                 f"{Colors.BOLD}TREND:{Colors.RESET} {color}{sparkline}{Colors.RESET}"
             )
 
-            # Only print if values changed (compare without colors/timestamp)
-            status_key = f"{round_num}|{current:.2f}|{max_mult:.2f}"
+            # Print every update without newline (carriage return updates same line)
+            # status_key tracks when to log a new line (only on max_mult or round change)
+            status_key = f"{round_num}|{max_mult:.2f}"
+
+            # Always print multiplier updates on same line
+            print(status_line, end='', flush=True)
+
+            # Only create new line when max multiplier or round changes
             if status_key != self.last_status_msg:
-                print(status_line)
+                print()  # New line when max changes
                 self.last_status_msg = status_key
                 self.status_printed = True
 
@@ -504,6 +513,122 @@ def test_configuration():
     input("Press Enter to continue...")
 
 
+def websocket_trading():
+    """Start WebSocket-based automated trading"""
+    config = load_game_config()
+    if not config or not config.is_valid():
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: Invalid configuration")
+        input("\nPress Enter to continue...")
+        return
+
+    print("\n" + "=" * 60)
+    print("WebSocket Automated Trading Setup".center(60))
+    print("=" * 60 + "\n")
+
+    # Get WebSocket URI from user
+    uri = input("Enter WebSocket URI (default: ws://localhost:8765): ").strip()
+    if not uri:
+        uri = "ws://localhost:8765"
+
+    # Ask for test mode
+    test_input = input("Run in test mode? (y/n, default: y): ").strip().lower()
+    test_mode = test_input != 'n'
+
+    print("\nStarting WebSocket automated trading...")
+    print(f"URI: {uri}")
+    print(f"Test Mode: {test_mode}\n")
+
+    try:
+        asyncio.run(run_automated_trading(
+            game_config=config,
+            websocket_uri=uri,
+            test_mode=test_mode,
+            num_test_rounds=5 if test_mode else 0
+        ))
+    except KeyboardInterrupt:
+        print("\n\nWebSocket trading stopped.")
+    except Exception as e:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: {e}")
+    finally:
+        input("\nPress Enter to return to menu...")
+
+
+def supabase_trading():
+    """Start Supabase-based automated trading"""
+    config = load_game_config()
+    if not config or not config.is_valid():
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: Invalid configuration")
+        input("\nPress Enter to continue...")
+        return
+
+    print("\n" + "=" * 60)
+    print("Supabase Automated Trading Setup".center(60))
+    print("=" * 60 + "\n")
+
+    # Get Supabase credentials from user
+    supabase_url = input("Enter Supabase Project URL: ").strip()
+    if not supabase_url:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: Supabase URL is required")
+        input("\nPress Enter to continue...")
+        return
+
+    supabase_key = input("Enter Supabase API Key: ").strip()
+    if not supabase_key:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: Supabase API Key is required")
+        input("\nPress Enter to continue...")
+        return
+
+    # Ask for confidence strategy
+    print("\nConfidence Strategies:")
+    print("1. Conservative (only >80% confidence)")
+    print("2. Moderate (only >60% confidence) - default")
+    print("3. Aggressive (only >40% confidence)")
+    strategy_choice = input("Select strategy (1-3, default: 2): ").strip()
+
+    strategy_map = {"1": "conservative", "2": "moderate", "3": "aggressive"}
+    strategy = strategy_map.get(strategy_choice, "moderate")
+
+    # Ask for test mode
+    test_input = input("Run in test mode? (y/n, default: y): ").strip().lower()
+    test_mode = test_input != 'n'
+
+    # Ask for polling interval
+    poll_interval_input = input("Enter polling interval in seconds (default: 5): ").strip()
+    try:
+        poll_interval = float(poll_interval_input) if poll_interval_input else 5.0
+    except ValueError:
+        poll_interval = 5.0
+
+    print("\nStarting Supabase automated trading...")
+    print(f"URL: {supabase_url}")
+    print(f"Strategy: {strategy}")
+    print(f"Test Mode: {test_mode}")
+    print(f"Poll Interval: {poll_interval}s\n")
+
+    try:
+        asyncio.run(run_supabase_automated_trading(
+            game_config=config,
+            supabase_url=supabase_url,
+            supabase_key=supabase_key,
+            poll_interval=poll_interval,
+            confidence_strategy=strategy,
+            enable_trading=not test_mode,
+            test_mode=test_mode
+        ))
+    except KeyboardInterrupt:
+        print("\n\nSupabase trading stopped.")
+    except Exception as e:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: {e}")
+    finally:
+        input("\nPress Enter to return to menu...")
+
+
 def main():
     """Main entry point with menu system"""
     # Migrate old config if needed
@@ -539,6 +664,12 @@ def main():
 
         elif action == 'test':
             test_configuration()
+
+        elif action == 'websocket':
+            websocket_trading()
+
+        elif action == 'supabase':
+            supabase_trading()
 
         elif action == 'exit':
             timestamp = datetime.now().strftime("%H:%M:%S")

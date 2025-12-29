@@ -47,7 +47,15 @@ class MenuController:
         print("   - Test current configuration (read balance and multiplier)")
         print()
 
-        print("4. Exit")
+        print("4. WebSocket Automated Trading")
+        print("   - Connect to WebSocket API for automated trading")
+        print()
+
+        print("5. Supabase Automated Trading")
+        print("   - Connect to Supabase database for automated trading")
+        print()
+
+        print("6. Exit")
         print("   - Close the application")
         print()
 
@@ -57,27 +65,27 @@ class MenuController:
         """Get user menu choice with validation
 
         Returns:
-            int: Menu choice (1-4)
+            int: Menu choice (1-6)
         """
         while True:
             try:
-                choice = input("\nEnter your choice (1-4): ").strip()
+                choice = input("\nEnter your choice (1-6): ").strip()
 
-                if choice not in ['1', '2', '3', '4']:
-                    print("Invalid choice. Please enter 1, 2, 3, or 4.")
+                if choice not in ['1', '2', '3', '4', '5', '6']:
+                    print("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
                     continue
 
                 return int(choice)
 
             except (ValueError, KeyboardInterrupt):
-                print("Invalid input. Please enter a number between 1 and 4.")
+                print("Invalid input. Please enter a number between 1 and 6.")
                 continue
 
     def run(self) -> str:
         """Run the menu and return selected action
 
         Returns:
-            str: Action to perform ('monitor', 'configure', 'test', or 'exit')
+            str: Action to perform ('monitor', 'configure', 'test', 'websocket', 'supabase', or 'exit')
         """
         self.display_menu()
         choice = self.get_user_choice()
@@ -102,6 +110,12 @@ class MenuController:
             return 'test'
 
         elif choice == 4:
+            return 'websocket'
+
+        elif choice == 5:
+            return 'supabase'
+
+        elif choice == 6:
             return 'exit'
 
     def print_section_header(self, title):
