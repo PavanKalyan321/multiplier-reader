@@ -801,18 +801,11 @@ def pycaret_trading():
         print(f"Listening for analytics_round_signals table updates...")
         print(f"Press Ctrl+C to stop\n")
 
-        # Get Supabase credentials from user
-        supabase_url = input("\nEnter Supabase Project URL: ").strip()
-        if not supabase_url:
-            print("\nERROR: Supabase URL is required")
-            input("\nPress Enter to return to menu...")
-            return
+        # Use saved Supabase credentials
+        supabase_url = "https://zofojiubrykbtmstfhzx.supabase.co"
+        supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s"
 
-        supabase_key = input("Enter Supabase API Key: ").strip()
-        if not supabase_key:
-            print("\nERROR: Supabase API Key is required")
-            input("\nPress Enter to return to menu...")
-            return
+        print("\nUsing configured Supabase credentials")
 
         # Initialize components
         screen_capture = ScreenCapture(config.multiplier_region)
