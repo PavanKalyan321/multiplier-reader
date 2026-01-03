@@ -57,7 +57,8 @@
       "Bash(for f in betting_helpers.py BETTING_HELPERS*.md BETTING_HELPERS*.txt betting_helpers_examples.py)",
       "Bash(do if [ -f \"$f\" ])",
       "Bash(then wc -l \"$f\")",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(timeout 40 python:*)"
     ]
   }
 }
