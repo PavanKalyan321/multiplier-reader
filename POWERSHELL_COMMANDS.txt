@@ -1,0 +1,157 @@
+═══════════════════════════════════════════════════════════════════════════════
+POWERSHELL DEPLOYMENT - ALL COMMAND VARIANTS
+═══════════════════════════════════════════════════════════════════════════════
+
+CHOOSE ONE OF THESE METHODS:
+
+═══════════════════════════════════════════════════════════════════════════════
+
+METHOD 1: RECOMMENDED - One-Line Automated Deployment
+─────────────────────────────────────────────────────────────────────────────
+
+Open PowerShell and run:
+
+powershell -ExecutionPolicy Bypass -File AZURE_DEPLOYMENT_POWERSHELL.ps1
+
+This does everything automatically!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+METHOD 2: Alternative Syntax (if method 1 doesn't work)
+─────────────────────────────────────────────────────────────────────────────
+
+powershell -NoProfile -ExecutionPolicy Bypass -File AZURE_DEPLOYMENT_POWERSHELL.ps1
+
+═══════════════════════════════════════════════════════════════════════════════
+
+METHOD 3: Run Script from Current Directory
+─────────────────────────────────────────────────────────────────────────────
+
+.\AZURE_DEPLOYMENT_POWERSHELL.ps1
+
+(This only works if execution policy is already set to Bypass)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+METHOD 4: Manual One-Step-At-A-Time Commands
+─────────────────────────────────────────────────────────────────────────────
+
+# Copy each command one at a time and run in PowerShell
+
+# Step 1
+az group create --name aviator-rg --location eastus
+
+# Step 2
+az acr create --resource-group aviator-rg --name aviatorai --sku Basic
+
+# Step 3
+az acr login --name aviatorai
+
+# Step 4
+cd .\azure_foundry_service
+az acr build --registry aviatorai --image aviator-foundry:v1.0 .
+cd ..
+
+# Step 5
+az containerapp env create --name aviator-env --resource-group aviator-rg --location eastus
+
+# Step 6
+az acr credential show --resource-group aviator-rg --name aviatorai
+
+# Step 7 (replace <USERNAME> and <PASSWORD> from Step 6)
+az containerapp create `
+  --name aviator-ai-foundry `
+  --resource-group aviator-rg `
+  --environment aviator-env `
+  --image aviatorai.azurecr.io/aviator-foundry:v1.0 `
+  --target-port 8000 `
+  --ingress external `
+  --min-replicas 1 `
+  --max-replicas 3 `
+  --cpu 2 `
+  --memory 4Gi `
+  --registry-server aviatorai.azurecr.io `
+  --registry-username <USERNAME> `
+  --registry-password <PASSWORD> `
+  --env-vars `
+    SUPABASE_URL="https://zofojiubrykbtmstfhzx.supabase.co" `
+    SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s" `
+    LOG_LEVEL="INFO" `
+    WORKERS="4"
+
+# Step 8
+az containerapp show --resource-group aviator-rg --name aviator-ai-foundry --query properties.configuration.ingress.fqdn
+
+═══════════════════════════════════════════════════════════════════════════════
+
+METHOD 5: If Method 1 Fails - Reset Execution Policy First
+─────────────────────────────────────────────────────────────────────────────
+
+Run PowerShell AS ADMINISTRATOR, then:
+
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope CurrentUser
+
+Then run:
+
+powershell -ExecutionPolicy Bypass -File AZURE_DEPLOYMENT_POWERSHELL.ps1
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TESTING THE DEPLOYMENT
+─────────────────────────────────────────────────────────────────────────────
+
+# Get your endpoint URL (after deployment)
+az containerapp show --resource-group aviator-rg --name aviator-ai-foundry --query properties.configuration.ingress.fqdn
+
+# Test health endpoint
+curl https://YOUR-ENDPOINT/health
+
+# Test models endpoint
+curl https://YOUR-ENDPOINT/models
+
+# View logs
+az containerapp logs show --name aviator-ai-foundry --resource-group aviator-rg --follow
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TROUBLESHOOTING COMMANDS
+─────────────────────────────────────────────────────────────────────────────
+
+# Check if Azure CLI is installed
+az --version
+
+# Check if you're logged in
+az account show
+
+# If not logged in, run:
+az login
+
+# Delete everything if something goes wrong (WARNING: Deletes all resources)
+az group delete --name aviator-rg --yes
+
+═══════════════════════════════════════════════════════════════════════════════
+
+WHICH METHOD TO CHOOSE?
+
+✅ METHOD 1: Best choice - automated and easy
+✅ METHOD 2: Same as METHOD 1, alternative syntax
+✅ METHOD 3: If execution policy already set
+✅ METHOD 4: If you want to understand each step
+✅ METHOD 5: If you get execution policy errors
+
+RECOMMENDATION: Start with METHOD 1
+
+═══════════════════════════════════════════════════════════════════════════════
+
+QUICK START:
+
+1. Open PowerShell
+2. Navigate to: C:\Users\Pavan Kalyan B N\OneDrive\Desktop\bot
+3. Run: powershell -ExecutionPolicy Bypass -File AZURE_DEPLOYMENT_POWERSHELL.ps1
+4. Wait 5-10 minutes
+5. Copy endpoint URL
+6. Add to .env: AZURE_FOUNDRY_ENDPOINT=https://your-endpoint
+7. Run: python main.py
+8. Done!
+
+═══════════════════════════════════════════════════════════════════════════════
