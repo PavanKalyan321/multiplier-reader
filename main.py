@@ -2,6 +2,7 @@
 import time
 import sys
 import json
+import os
 import asyncio
 from datetime import datetime
 from config import load_config, get_default_region, load_game_config, GameConfig, migrate_old_config
@@ -13,6 +14,7 @@ from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
 from prediction_engine import PredictionEngine
 from analytics_client import AnalyticsClient
+from azure_foundry_client import AzureFoundryClient
 from browser_refresh import BrowserRefresh
 from auto_refresher import AutoRefresher
 from menu_controller import MenuController
@@ -97,6 +99,12 @@ class MultiplierReaderApp:
         self.prediction_engine = PredictionEngine()
         self.analytics_client = AnalyticsClient(self.supabase.client if self.supabase.enabled else None)
 
+        # Initialize Azure AI Foundry client
+        self.azure_foundry_client = AzureFoundryClient(
+            endpoint_url=os.getenv('AZURE_FOUNDRY_ENDPOINT'),
+            api_key=os.getenv('AZURE_FOUNDRY_API_KEY')
+        )
+
         # Initialize browser refresh manager (refresh every 30 minutes)
         self.browser_refresh = BrowserRefresh(refresh_interval_minutes=30)
 
@@ -115,6 +123,9 @@ class MultiplierReaderApp:
             'predictions_generated': 0,  # Track predictions made
             'signals_saved': 0,          # Track signals saved to analytics
             'browser_refreshes': 0,      # Track browser refreshes
+            'azure_predictions': 0,      # Track Azure predictions
+            'azure_failures': 0,         # Track Azure failures
+            'fallback_predictions': 0,   # Track fallback predictions
         }
 
     def _check_and_refresh_browser(self):
@@ -148,6 +159,85 @@ class MultiplierReaderApp:
                 'crash_detected': round_data.crash_detected
             })
         return rounds
+
+    def _trigger_azure_prediction(self, round_summary):
+        """
+        Request prediction from Azure AI Foundry with fallback to local prediction
+
+        Args:
+            round_summary: Round summary data from game_tracker
+        """
+        timestamp = datetime.now().strftime("%H:%M:%S")
+
+        try:
+            # Request from Azure AI Foundry
+            result = self.azure_foundry_client.request_prediction(
+                round_id=round_summary.round_number,
+                round_number=round_summary.round_number
+            )
+
+            if result.get('status') == 'success':
+                self.stats['azure_predictions'] += 1
+                self.stats['signals_saved'] += 1
+                print(f"[{timestamp}] SUCCESS: Azure AI Foundry prediction completed")
+            else:
+                raise Exception(f"Azure error: {result.get('error', 'Unknown error')}")
+
+        except Exception as e:
+            # Fallback to local prediction
+            self.stats['azure_failures'] += 1
+            print(f"[{timestamp}] WARNING: Azure unavailable, using local fallback")
+            print(f"[{timestamp}]   Error: {str(e)}")
+
+            try:
+                # Prepare round history for prediction
+                rounds_data = self._prepare_rounds_for_prediction()
+
+                # Train prediction engine with historical data
+                print(f"[{timestamp}] INFO: Training local prediction models with {len(rounds_data)} rounds...")
+                self.prediction_engine.train(rounds_data)
+
+                # Make prediction for next round
+                prediction = self.prediction_engine.predict(rounds_data)
+
+                if prediction:
+                    self.stats['predictions_generated'] += 1
+                    self.stats['fallback_predictions'] += 1
+
+                    # Calculate volatility and momentum metrics
+                    volatility = self.prediction_engine.calculate_volatility(rounds_data)
+                    momentum = self.prediction_engine.calculate_momentum(rounds_data)
+
+                    # Get ensemble prediction
+                    ensemble_pred = prediction.get('ensemble', {})
+                    signal_type = self.analytics_client._get_pattern_type(
+                        prediction.get('features', {})
+                    )
+
+                    print(f"[{timestamp}] INFO: Local prediction complete (fallback)")
+                    print(f"[{timestamp}]   - Signal: {ensemble_pred.get('prediction', 'N/A')} (confidence: {ensemble_pred.get('confidence', 0):.2%})")
+                    print(f"[{timestamp}]   - Volatility: {volatility:.3f}, Momentum: {momentum:.3f}")
+
+                    # Insert signal into analytics_round_signals table
+                    signal_inserted = self.analytics_client.insert_signal(
+                        round_id=round_summary.round_number,
+                        round_number=round_summary.round_number,
+                        prediction=prediction,
+                        volatility=volatility,
+                        momentum=momentum,
+                        bot_id="multiplier-reader-fallback",
+                        game_name="aviator"
+                    )
+
+                    if signal_inserted:
+                        self.stats['signals_saved'] += 1
+                        print(f"[{timestamp}] INFO: Fallback signal saved to analytics_round_signals")
+                    else:
+                        print(f"[{timestamp}] WARNING: Failed to save fallback signal")
+
+            except Exception as fallback_error:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                print(f"[{timestamp}] ERROR: Fallback prediction also failed: {fallback_error}")
 
     def generate_sparkline(self, values, width=10):
         """Generate ASCII sparkline from values"""
@@ -226,55 +316,7 @@ class MultiplierReaderApp:
 
         # Trigger prediction pipeline if we have enough historical data
         if len(self.game_tracker.round_history) >= 5:
-            try:
-                # Prepare round history for prediction
-                rounds_data = self._prepare_rounds_for_prediction()
-
-                # Train prediction engine with historical data
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                print(f"[{timestamp}] INFO: Training prediction models with {len(rounds_data)} rounds...")
-                self.prediction_engine.train(rounds_data)
-
-                # Make prediction for next round
-                prediction = self.prediction_engine.predict(rounds_data)
-
-                if prediction:
-                    self.stats['predictions_generated'] += 1
-
-                    # Calculate volatility and momentum metrics
-                    volatility = self.prediction_engine.calculate_volatility(rounds_data)
-                    momentum = self.prediction_engine.calculate_momentum(rounds_data)
-
-                    # Get ensemble prediction
-                    ensemble_pred = prediction.get('ensemble', {})
-                    signal_type = self.analytics_client._get_pattern_type(
-                        prediction.get('features', {})
-                    )
-
-                    print(f"[{timestamp}] INFO: Prediction complete")
-                    print(f"[{timestamp}]   - Signal: {ensemble_pred.get('prediction', 'N/A')} (confidence: {ensemble_pred.get('confidence', 0):.2%})")
-                    print(f"[{timestamp}]   - Volatility: {volatility:.3f}, Momentum: {momentum:.3f}")
-
-                    # Insert signal into analytics_round_signals table
-                    signal_inserted = self.analytics_client.insert_signal(
-                        round_id=round_summary.round_number,
-                        round_number=round_summary.round_number,
-                        prediction=prediction,
-                        volatility=volatility,
-                        momentum=momentum,
-                        bot_id="multiplier-reader",
-                        game_name="aviator"
-                    )
-
-                    if signal_inserted:
-                        self.stats['signals_saved'] += 1
-                        print(f"[{timestamp}] INFO: Signal saved to analytics_round_signals")
-                    else:
-                        print(f"[{timestamp}] WARNING: Failed to save signal to analytics")
-
-            except Exception as e:
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                print(f"[{timestamp}] WARNING: Prediction pipeline error: {e}")
+            self._trigger_azure_prediction(round_summary)
 
         print()
         timestamp = datetime.now().strftime("%H:%M:%S")
