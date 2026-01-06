@@ -1,0 +1,169 @@
+═══════════════════════════════════════════════════════════════════════════════
+AZURE AI FOUNDRY - POWERSHELL QUICK START
+═══════════════════════════════════════════════════════════════════════════════
+
+You have 2 OPTIONS to deploy to Azure:
+
+OPTION 1: AUTOMATED SCRIPT (RECOMMENDED)
+─────────────────────────────────────────────────────────────────────────────
+This runs everything automatically with colored output and error handling.
+
+HOW TO RUN:
+1. Open PowerShell in the bot directory
+2. Copy-paste this EXACT command:
+
+powershell -ExecutionPolicy Bypass -File AZURE_DEPLOYMENT_POWERSHELL.ps1
+
+That's it! The script will:
+  ✓ Create Resource Group
+  ✓ Create Container Registry
+  ✓ Build and Push Docker Image
+  ✓ Create Container App
+  ✓ Get your endpoint URL
+  ✓ Test the service
+  ✓ Update your .env file
+  ✓ Show next steps
+
+═══════════════════════════════════════════════════════════════════════════════
+
+OPTION 2: MANUAL COMMANDS (If you prefer step-by-step)
+─────────────────────────────────────────────────────────────────────────────
+
+Copy-paste each command one at a time in PowerShell:
+
+# STEP 1: Create Resource Group
+az group create --name aviator-rg --location eastus
+
+# STEP 2: Create Container Registry
+az acr create --resource-group aviator-rg --name aviatorai --sku Basic
+
+# STEP 3: Login to registry
+az acr login --name aviatorai
+
+# STEP 4: Build and push image (make sure you're in bot directory)
+cd .\azure_foundry_service
+az acr build --registry aviatorai --image aviator-foundry:v1.0 .
+cd ..
+
+# STEP 5: Create Container App Environment
+az containerapp env create --name aviator-env --resource-group aviator-rg --location eastus
+
+# STEP 6: Get registry credentials (save these)
+az acr credential show --resource-group aviator-rg --name aviatorai
+
+# STEP 7: Create Container App (replace <USERNAME> and <PASSWORD>)
+az containerapp create `
+  --name aviator-ai-foundry `
+  --resource-group aviator-rg `
+  --environment aviator-env `
+  --image aviatorai.azurecr.io/aviator-foundry:v1.0 `
+  --target-port 8000 `
+  --ingress external `
+  --min-replicas 1 `
+  --max-replicas 3 `
+  --cpu 2 `
+  --memory 4Gi `
+  --registry-server aviatorai.azurecr.io `
+  --registry-username <USERNAME> `
+  --registry-password <PASSWORD> `
+  --env-vars `
+    SUPABASE_URL="https://zofojiubrykbtmstfhzx.supabase.co" `
+    SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s" `
+    LOG_LEVEL="INFO" `
+    WORKERS="4"
+
+# STEP 8: Get your endpoint URL
+az containerapp show --resource-group aviator-rg --name aviator-ai-foundry --query properties.configuration.ingress.fqdn
+
+# STEP 9: Copy that URL and add to .env file
+# Edit .env and add:
+# AZURE_FOUNDRY_ENDPOINT=https://your-url-from-step-8
+
+═══════════════════════════════════════════════════════════════════════════════
+
+WHICH OPTION TO CHOOSE?
+
+Choose OPTION 1 (Automated Script) if you want:
+  ✓ One command to deploy everything
+  ✓ Automatic error handling
+  ✓ Colored output for clarity
+  ✓ Automatic endpoint detection
+  ✓ Optional .env file creation
+  ✓ Service health testing
+
+Choose OPTION 2 (Manual) if you want:
+  ✓ More control over each step
+  ✓ To understand what's happening
+  ✓ To copy-paste individual commands
+  ✓ To debug issues manually
+
+RECOMMENDATION: Use OPTION 1 for fastest deployment!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+RUNNING THE AUTOMATED SCRIPT:
+
+1. Make sure you have:
+   ✓ Azure CLI installed (az --version)
+   ✓ Logged into Azure (az login)
+   ✓ Are in the bot directory
+
+2. Open PowerShell and run:
+   powershell -ExecutionPolicy Bypass -File AZURE_DEPLOYMENT_POWERSHELL.ps1
+
+3. Wait for completion (5-10 minutes)
+
+4. Script will ask if you want to update .env file automatically
+
+5. Script will show you the endpoint URL
+
+6. Done! Start your bot with: python main.py
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TROUBLESHOOTING:
+
+If "Azure CLI not installed":
+  → Install from: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
+
+If "Not logged in":
+  → The script will automatically run: az login
+  → Sign in with your Azure account in the browser
+
+If "Command not recognized":
+  → Make sure you're in PowerShell (not CMD)
+  → Use: powershell -NoExit AZURE_DEPLOYMENT_POWERSHELL.ps1
+
+If Docker build fails:
+  → Make sure you're in the bot directory
+  → Make sure azure_foundry_service/Dockerfile exists
+
+If Container App creation fails:
+  → Make sure all previous steps completed
+  → Check that registry credentials are correct
+
+═══════════════════════════════════════════════════════════════════════════════
+
+AFTER DEPLOYMENT:
+
+1. Copy your endpoint URL (the script will show it)
+
+2. Edit your .env file and add:
+   AZURE_FOUNDRY_ENDPOINT=https://your-endpoint-url
+
+3. Start your bot:
+   python main.py
+
+4. Complete a round in the game
+
+5. Check logs for Azure prediction message
+
+═══════════════════════════════════════════════════════════════════════════════
+
+READY? Let's go!
+
+Copy this command and paste it in PowerShell:
+
+powershell -ExecutionPolicy Bypass -File AZURE_DEPLOYMENT_POWERSHELL.ps1
+
+═══════════════════════════════════════════════════════════════════════════════
