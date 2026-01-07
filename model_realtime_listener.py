@@ -489,6 +489,50 @@ class ModelRealtimeListener:
                 "INFO"
             )
 
+    def validate_pre_bet_conditions(self) -> Tuple[bool, str]:
+        """Validate all conditions before placing a bet
+
+        Returns:
+            Tuple: (is_valid: bool, reason: str)
+        """
+        # Check 1: Verify balance exists and is reasonable
+        current_balance = self.read_current_balance()
+        if current_balance is None:
+            return False, "Cannot read current balance"
+
+        if current_balance <= 0:
+            return False, f"Balance is zero or negative: {current_balance}"
+
+        if current_balance < self.current_stake:
+            return False, f"Insufficient balance {current_balance} for stake {self.current_stake}"
+
+        # Check 2: Verify button is GREEN right now (final check)
+        button_state = self.check_button_state()
+        if button_state != 'green':
+            return False, f"Button is {button_state}, not GREEN - cannot place bet"
+
+        # Check 3: Verify no active multiplier (round not started)
+        try:
+            current_mult = self.multiplier_reader.read_multiplier()
+            if current_mult is not None and current_mult > 1.0:
+                return False, f"Multiplier already active at {current_mult:.2f}x - round in progress"
+        except:
+            pass  # If can't read multiplier, continue
+
+        # Check 4: Verify we haven't processed this round yet
+        round_id = None
+        if hasattr(self, '_current_round_id'):
+            round_id = self._current_round_id
+            existing_round = next((r for r in self.rounds if r.round_id == round_id and r.bet_placed), None)
+            if existing_round:
+                return False, f"Bet already placed in round {round_id}"
+
+        self._log(
+            f"Pre-bet validation PASSED | Balance: {current_balance:.2f} | Button: {button_state} | Stake: {self.current_stake:.2f}",
+            "INFO"
+        )
+        return True, "All conditions valid"
+
     async def execute_pycaret_signal(self, signal_data: Dict[str, Any]) -> Dict[str, Any]:
         """Execute trading based on PyCaret signal with criteria
 
@@ -595,43 +639,59 @@ class ModelRealtimeListener:
                 self.failed_trades += 1
                 return result
 
-            # Check button color - MUST be GREEN to place bet
-            # GREEN = Bet not yet placed, button available
-            # ORANGE = Bet already placed or button unavailable
-            # BLUE = Multiplier running (shouldn't be here)
-            time.sleep(0.5)
-            button_state = self.check_button_state()
-            self._log(f"Checking bet button state: {button_state}", "INFO")
+            # COMPREHENSIVE PRE-BET VALIDATION
+            # Check all conditions before placing bet
+            self._current_round_id = round_id  # Store for validation
+            time.sleep(0.5)  # Let UI settle
 
-            if button_state != 'green':
+            is_valid, validation_reason = self.validate_pre_bet_conditions()
+
+            if not is_valid:
                 result["status"] = "failed"
-                result["error_message"] = f"Button not GREEN (current: {button_state}) - cannot place bet"
+                result["error_message"] = f"Pre-bet validation failed: {validation_reason}"
                 round_record.status = "failed"
-                self._log(f"Button is {button_state}, not green - SKIPPING bet to avoid latching to previous round", "WARNING")
+                self._log(f"PRE-BET VALIDATION FAILED: {validation_reason}", "WARNING")
                 self.failed_trades += 1
                 return result
 
-            # Button is GREEN - safe to place bet
-            self._log(f"Button is GREEN - Ready to place bet immediately", "INFO")
+            # All validations passed - safe to place bet
+            self._log(f"ALL PRE-BET CHECKS PASSED - Proceeding with bet placement", "INFO")
 
-            # Record balance BEFORE bet
+            # Record balance BEFORE bet (final check)
             self.previous_balance = self.read_current_balance()
+            if self.previous_balance is None:
+                result["status"] = "failed"
+                result["error_message"] = "Failed to read balance before bet"
+                round_record.status = "failed"
+                self._log(f"Cannot read balance - aborting bet", "ERROR")
+                self.failed_trades += 1
+                return result
+
+            # FINAL BUTTON CHECK - right before click
+            final_button_state = self.check_button_state()
+            if final_button_state != 'green':
+                result["status"] = "failed"
+                result["error_message"] = f"Button changed to {final_button_state} - aborting bet placement"
+                round_record.status = "failed"
+                self._log(f"ABORT: Button is {final_button_state} at click time (was green moments ago) - race condition detected", "ERROR")
+                self.failed_trades += 1
+                return result
 
             # Place bet
-            self._log(f"Placing bet for round {round_id} with stake: {self.current_stake:.2f}...", "INFO")
+            self._log(f"CLICKING BET BUTTON for round {round_id} | Stake: {self.current_stake:.2f} | Balance: {self.previous_balance:.2f}", "INFO")
             bet_success = self.game_actions.click_bet_button()
 
             if not bet_success:
                 result["status"] = "failed"
                 result["error_message"] = "Failed to click bet button"
                 round_record.status = "failed"
-                self._log(f"Bet placement failed - click action failed", "ERROR")
+                self._log(f"BET CLICK FAILED - Click action returned False", "ERROR")
                 self.failed_trades += 1
                 return result
 
             result["bet_placed"] = True
             round_record.bet_placed = True
-            self._log(f"Bet placed successfully for round {round_id}", "INFO")
+            self._log(f"BET PLACED SUCCESSFULLY | Round: {round_id} | Stake: {self.current_stake:.2f}", "INFO")
             time.sleep(1.0)
 
             # Wait for round to start
