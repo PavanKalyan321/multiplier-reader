@@ -862,6 +862,7 @@ def pycaret_trading():
         listener = ModelRealtimeListener(
             game_actions=game_actions,
             multiplier_reader=multiplier_reader,
+            screen_capture=screen_capture,
             supabase_url=supabase_url,
             supabase_key=supabase_key,
             model_name=model_name,
