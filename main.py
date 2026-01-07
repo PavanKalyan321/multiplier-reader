@@ -5,6 +5,10 @@ import json
 import os
 import asyncio
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from config import load_config, get_default_region, load_game_config, GameConfig, migrate_old_config
 from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
