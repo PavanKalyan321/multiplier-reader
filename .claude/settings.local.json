@@ -54,7 +54,8 @@
       "Bash(git checkout:*)",
       "Bash(git config:*)",
       "Bash(git push:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git ls-tree:*)"
     ]
   }
 }

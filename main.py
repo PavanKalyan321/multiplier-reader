@@ -2,6 +2,7 @@
 import time
 import sys
 import json
+import os
 from datetime import datetime
 from config import load_config, get_default_region
 from screen_capture import ScreenCapture
@@ -9,6 +10,7 @@ from multiplier_reader import MultiplierReader
 from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
 from auto_refresh import AutoRefresher
+from azure_foundry_client import AzureFoundryClient
 # Try importing advanced ML system first, then fall back to multi-model, then single model
 try:
     from ml_system.prediction_engine import PredictionEngine
@@ -80,6 +82,12 @@ class MultiplierReaderApp:
             key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s'
         )
 
+        # Initialize Azure AI Foundry client
+        self.azure_foundry_client = AzureFoundryClient(
+            endpoint_url=os.getenv('AZURE_FOUNDRY_ENDPOINT'),
+            api_key=os.getenv('AZURE_FOUNDRY_API_KEY')
+        )
+
         # Initialize ML predictor (try advanced ML first, then fallback)
         self.predictor = None
         self.current_prediction_ids = {}  # Track prediction IDs per model
@@ -113,6 +121,9 @@ class MultiplierReaderApp:
             'failed_reads': 0,
             'crashes_detected': 0,
             'max_multiplier_ever': 0,
+            'azure_predictions': 0,      # Track Azure Foundry predictions
+            'azure_failures': 0,         # Track Azure Foundry failures
+            'signals_saved': 0,          # Track saved signals
             'start_time': datetime.now(),
             'supabase_inserts': 0,      # Track successful inserts
             'supabase_failures': 0,      # Track failed inserts
@@ -245,6 +256,31 @@ class MultiplierReaderApp:
         else:
             self.stats['supabase_failures'] += 1
             round_id = None  # Make sure it's None for later checks
+
+        # Call Azure AI Foundry for prediction (if round was saved)
+        if round_id and self.azure_foundry_client.enabled:
+            try:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                print(f"[{timestamp}] INFO: Requesting prediction from Azure AI Foundry...")
+
+                result = self.azure_foundry_client.request_prediction(
+                    round_id=round_id,
+                    round_number=round_summary.round_number
+                )
+
+                if result.get('status') == 'success':
+                    self.stats['azure_predictions'] += 1
+                    self.stats['signals_saved'] += 1
+                    print(f"[{timestamp}] SUCCESS: Azure AI Foundry prediction completed")
+                    print(f"[{timestamp}]   - Models executed: {result.get('models_executed', 0)}")
+                    print(f"[{timestamp}]   - Ensemble confidence: {result.get('ensemble_confidence', 0):.1%}")
+                else:
+                    self.stats['azure_failures'] += 1
+                    print(f"[{timestamp}] WARNING: Azure prediction failed: {result.get('error', 'Unknown error')}")
+
+            except Exception as e:
+                self.stats['azure_failures'] += 1
+                print(f"[{timestamp}] WARNING: Azure AI Foundry error: {e}")
 
         # Update ML predictor with actual result (if we had a prediction)
         if self.predictor and len(self.current_prediction_ids) > 0:
