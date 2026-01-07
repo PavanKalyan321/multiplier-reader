@@ -9,6 +9,7 @@ from multiplier_reader import MultiplierReader
 from game_actions import GameActions
 from screen_capture import ScreenCapture
 from config import RegionConfig
+from balance_reader import BalanceReader
 import pyautogui
 import numpy as np
 from PIL import ImageGrab
@@ -49,24 +50,28 @@ class ModelRealtimeListener:
         self,
         game_actions: GameActions,
         multiplier_reader: MultiplierReader,
+        screen_capture: ScreenCapture,
         supabase_url: str,
         supabase_key: str,
         model_name: str = "PyCaret",
         min_predicted_multiplier: float = 1.3,
         min_range_start: float = 1.3,
-        safety_margin: float = 0.8
+        safety_margin: float = 0.8,
+        base_stake: float = 20.0
     ):
         """Initialize real-time listener
 
         Args:
             game_actions: GameActions instance for clicking
             multiplier_reader: MultiplierReader instance for monitoring
+            screen_capture: ScreenCapture instance for balance reading
             supabase_url: Supabase project URL
             supabase_key: Supabase anon/JWT key
             model_name: Name of model to extract (default: "PyCaret")
             min_predicted_multiplier: Minimum predicted multiplier to bet (default 1.3)
             min_range_start: Minimum range start to bet (default 1.3)
             safety_margin: Cashout at this % of predicted (default 0.8 = 20% buffer)
+            base_stake: Base bet amount (default 20)
         """
         self.game_actions = game_actions
         self.multiplier_reader = multiplier_reader
@@ -81,6 +86,13 @@ class ModelRealtimeListener:
         self.min_predicted_multiplier = min_predicted_multiplier
         self.min_range_start = min_range_start
         self.safety_margin = safety_margin
+        self.base_stake = base_stake
+        self.current_stake = base_stake
+
+        # Balance tracking
+        self.balance_reader = BalanceReader(screen_capture)
+        self.previous_balance = None
+        self.last_balance_check = None
 
         # Statistics
         self.execution_count = 0
@@ -88,6 +100,7 @@ class ModelRealtimeListener:
         self.successful_trades = 0
         self.failed_trades = 0
         self.processing_signal = False
+        self.consecutive_losses = 0
 
         # Local round tracking array
         self.rounds: List[RoundRecord] = []
@@ -293,42 +306,37 @@ class ModelRealtimeListener:
         """Check the state of the bet button by its color
 
         Returns:
-            'green' - Button is ready to place bet
-            'orange' - Button is waiting (bet already placed or round active)
+            'green' - Button is GREEN (place bet available, can place bet NOW)
+            'blue' - Button is BLUE (multiplier running/round in progress)
+            'orange' - Button is GRAY/OTHER (bet already placed, waiting for next round)
             'unknown' - Cannot determine state
         """
         try:
             r, g, b = self.get_button_color()
 
-            # Calculate brightness
-            brightness = (r + g + b) / 3
-
-            # For BRIGHT colors (typical colors):
-            # Green button: High green value, moderate red, low blue
-            # Typical bright green: R=0-100, G=180-255, B=0-100
-            if g > r + 50 and g > 150 and b < 150:
-                self._log(f"DEBUG: Bright green detected RGB({r}, {g}, {b})", "DEBUG")
+            # Exact color detection from bet_placement_orchestrator
+            # GREEN button: Place bet is available (g > 100 and r < g)
+            # Typical green: (85, 170, 38) or similar
+            if g > 100 and r < g:
+                self._log(f"DEBUG: GREEN detected RGB({r}, {g}, {b}) - Bet can be placed", "DEBUG")
                 return 'green'
 
-            # Orange button: High red, high green, low blue
-            # Typical bright orange: R=200-255, G=140-200, B=0-100
-            if r > 150 and g > 100 and g < r + 100 and b < 120:
-                self._log(f"DEBUG: Bright orange detected RGB({r}, {g}, {b})", "DEBUG")
+            # BLUE button: Game in progress (b > 100 and r < b)
+            # Typical blue: (45, 107, 253) or similar
+            elif b > 100 and r < b:
+                self._log(f"DEBUG: BLUE detected RGB({r}, {g}, {b}) - Multiplier running", "DEBUG")
+                return 'blue'
+
+            # GRAY/OTHER: Button state changed (placed or disabled)
+            # This is when abs(r-g) < 30 and abs(g-b) < 30 OR any other color
+            elif abs(r - g) < 30 and abs(g - b) < 30:
+                self._log(f"DEBUG: GRAY detected RGB({r}, {g}, {b}) - Bet placed/waiting", "DEBUG")
                 return 'orange'
 
-            # For DARK/MEDIUM colors (dark theme):
-            # RGB(84, 64, 96) or similar - check relative color values
-            # If green is highest, it's ready state
-            if brightness < 150:  # Dark color
-                if g > r + 5 and g > b:
-                    self._log(f"DEBUG: Dark green (ready) detected RGB({r}, {g}, {b})", "DEBUG")
-                    return 'green'
-                else:
-                    self._log(f"DEBUG: Dark non-green (waiting) detected RGB({r}, {g}, {b})", "DEBUG")
-                    return 'orange'
+            else:
+                self._log(f"DEBUG: OTHER color detected RGB({r}, {g}, {b})", "DEBUG")
+                return 'orange'  # Default to orange (not green = not available to place)
 
-            self._log(f"DEBUG: Cannot determine state from RGB({r}, {g}, {b})", "DEBUG")
-            return 'unknown'
         except Exception as e:
             self._log(f"Error checking button state: {e}", "WARNING")
             return 'unknown'
@@ -416,6 +424,71 @@ class ModelRealtimeListener:
             print(f"  {i}. {record}")
 
         print("="*100 + "\n")
+
+    def read_current_balance(self) -> Optional[float]:
+        """Read current balance from screen
+
+        Returns:
+            float: Current balance or None if unable to read
+        """
+        try:
+            balance = self.balance_reader.read_balance()
+            if balance is not None:
+                self._log(f"Current balance: {balance}", "INFO")
+                return balance
+            else:
+                self._log("Failed to read balance", "WARNING")
+                return None
+        except Exception as e:
+            self._log(f"Error reading balance: {e}", "WARNING")
+            return None
+
+    def calculate_balance_change(self, current_balance: Optional[float]) -> Tuple[bool, Optional[float]]:
+        """Calculate balance change and determine win/loss
+
+        Args:
+            current_balance: Current balance value
+
+        Returns:
+            Tuple: (is_win: bool, balance_change: float or None)
+        """
+        if current_balance is None or self.previous_balance is None:
+            return False, None
+
+        change = current_balance - self.previous_balance
+        is_win = change > 0
+
+        self._log(
+            f"Balance change: {self.previous_balance:.2f} → {current_balance:.2f} (Delta: {change:+.2f}) - {'WIN' if is_win else 'LOSS'}",
+            "INFO"
+        )
+
+        return is_win, change
+
+    def adjust_stake(self, is_win: bool):
+        """Adjust stake for next bet based on win/loss
+
+        Args:
+            is_win: True if last bet was a win, False if loss
+        """
+        old_stake = self.current_stake
+
+        if is_win:
+            # Increase stake by 30% on win
+            self.current_stake = self.current_stake * 1.3
+            self.consecutive_losses = 0
+            self._log(
+                f"WIN! Stake increased: {old_stake:.2f} → {self.current_stake:.2f} (+30%)",
+                "INFO"
+            )
+        else:
+            # Reset to base on loss
+            self.current_stake = self.base_stake
+            self.consecutive_losses += 1
+            self._log(
+                f"LOSS! Stake reset to base: {old_stake:.2f} → {self.current_stake:.2f}",
+                "INFO"
+            )
 
     async def execute_pycaret_signal(self, signal_data: Dict[str, Any]) -> Dict[str, Any]:
         """Execute trading based on PyCaret signal with criteria
@@ -523,34 +596,37 @@ class ModelRealtimeListener:
                 self.failed_trades += 1
                 return result
 
-            # Check button color - must be GREEN to place bet
-            # Give the UI a moment to update after round ends
-            time.sleep(1.0)
-            self._log(f"Checking bet button state before placing bet...", "INFO")
+            # Check button color - MUST be GREEN to place bet
+            # GREEN = Bet not yet placed, button available
+            # ORANGE = Bet already placed or button unavailable
+            # BLUE = Multiplier running (shouldn't be here)
+            time.sleep(0.5)
+            button_state = self.check_button_state()
+            self._log(f"Checking bet button state: {button_state}", "INFO")
 
-            # Try waiting for button to be ready (with shorter timeout)
-            button_ready = self.wait_for_button_ready(max_wait_seconds=5)
+            if button_state != 'green':
+                result["status"] = "failed"
+                result["error_message"] = f"Button not GREEN (current: {button_state}) - cannot place bet"
+                round_record.status = "failed"
+                self._log(f"Button is {button_state}, not green - SKIPPING bet to avoid latching to previous round", "WARNING")
+                self.failed_trades += 1
+                return result
 
-            if not button_ready:
-                # If button didn't become green in 5 seconds, check current state
-                button_color = self.check_button_state()
-                self._log(f"Button not green after 5s (state: {button_color}), attempting bet placement anyway", "WARNING")
-                # Don't abort - continue to try placing the bet
-                # The game may not show green button or colors may not be detected correctly
-            else:
-                self._log(f"Bet button is ready - proceeding with bet placement", "INFO")
+            # Button is GREEN - safe to place bet
+            self._log(f"Button is GREEN - Ready to place bet immediately", "INFO")
+
+            # Record balance BEFORE bet
+            self.previous_balance = self.read_current_balance()
 
             # Place bet
-            self._log(f"Placing bet for round {round_id}...", "INFO")
+            self._log(f"Placing bet for round {round_id} with stake: {self.current_stake:.2f}...", "INFO")
             bet_success = self.game_actions.click_bet_button()
 
             if not bet_success:
                 result["status"] = "failed"
-                result["error_message"] = "Failed to place bet - click action returned False"
+                result["error_message"] = "Failed to click bet button"
                 round_record.status = "failed"
-                # Check button state for debugging
-                button_state = self.check_button_state()
-                self._log(f"Bet placement failed | Button state: {button_state}", "ERROR")
+                self._log(f"Bet placement failed - click action failed", "ERROR")
                 self.failed_trades += 1
                 return result
 
@@ -651,6 +727,28 @@ class ModelRealtimeListener:
                 f"Round {round_id} completed - Cashout at {result['final_multiplier']:.2f}x",
                 "INFO"
             )
+
+            # Track balance change and adjust stake for next bet
+            time.sleep(1.0)  # Wait for balance to update
+            current_balance = self.read_current_balance()
+
+            if current_balance is not None:
+                is_win, balance_change = self.calculate_balance_change(current_balance)
+
+                if balance_change is not None:
+                    # Record balance change in result
+                    result["balance_before"] = self.previous_balance
+                    result["balance_after"] = current_balance
+                    result["balance_change"] = balance_change
+
+                    # Adjust stake for next bet
+                    self.adjust_stake(is_win)
+
+                    # Update tracking
+                    if is_win:
+                        self.successful_trades += 1
+                    else:
+                        self.failed_trades += 1
 
             return result
 
