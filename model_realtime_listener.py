@@ -293,26 +293,42 @@ class ModelRealtimeListener:
         """Check the state of the bet button by its color
 
         Returns:
-            'green' - Button is ready to place bet (bright green)
-            'orange' - Button is waiting (orange/amber color, bet already placed or round active)
+            'green' - Button is ready to place bet
+            'orange' - Button is waiting (bet already placed or round active)
             'unknown' - Cannot determine state
         """
         try:
             r, g, b = self.get_button_color()
 
+            # Calculate brightness
+            brightness = (r + g + b) / 3
+
+            # For BRIGHT colors (typical colors):
             # Green button: High green value, moderate red, low blue
-            # Typical green: R=0-100, G=180-255, B=0-100
+            # Typical bright green: R=0-100, G=180-255, B=0-100
             if g > r + 50 and g > 150 and b < 150:
+                self._log(f"DEBUG: Bright green detected RGB({r}, {g}, {b})", "DEBUG")
                 return 'green'
 
             # Orange button: High red, high green, low blue
-            # Typical orange: R=200-255, G=140-200, B=0-100
-            elif r > 150 and g > 100 and g < r + 100 and b < 120:
+            # Typical bright orange: R=200-255, G=140-200, B=0-100
+            if r > 150 and g > 100 and g < r + 100 and b < 120:
+                self._log(f"DEBUG: Bright orange detected RGB({r}, {g}, {b})", "DEBUG")
                 return 'orange'
 
-            else:
-                self._log(f"DEBUG: Button color RGB({r}, {g}, {b})", "DEBUG")
-                return 'unknown'
+            # For DARK/MEDIUM colors (dark theme):
+            # RGB(84, 64, 96) or similar - check relative color values
+            # If green is highest, it's ready state
+            if brightness < 150:  # Dark color
+                if g > r + 5 and g > b:
+                    self._log(f"DEBUG: Dark green (ready) detected RGB({r}, {g}, {b})", "DEBUG")
+                    return 'green'
+                else:
+                    self._log(f"DEBUG: Dark non-green (waiting) detected RGB({r}, {g}, {b})", "DEBUG")
+                    return 'orange'
+
+            self._log(f"DEBUG: Cannot determine state from RGB({r}, {g}, {b})", "DEBUG")
+            return 'unknown'
         except Exception as e:
             self._log(f"Error checking button state: {e}", "WARNING")
             return 'unknown'
@@ -509,19 +525,20 @@ class ModelRealtimeListener:
 
             # Check button color - must be GREEN to place bet
             # Give the UI a moment to update after round ends
-            time.sleep(0.5)
+            time.sleep(1.0)
             self._log(f"Checking bet button state before placing bet...", "INFO")
-            button_ready = self.wait_for_button_ready(max_wait_seconds=30)
+
+            # Try waiting for button to be ready (with shorter timeout)
+            button_ready = self.wait_for_button_ready(max_wait_seconds=5)
 
             if not button_ready:
-                result["status"] = "failed"
-                result["error_message"] = "Bet button not in ready state (not green)"
-                round_record.status = "failed"
-                # Get button color for debugging
+                # If button didn't become green in 5 seconds, check current state
                 button_color = self.check_button_state()
-                self._log(f"Bet button state: {button_color} - aborting bet placement", "ERROR")
-                self.failed_trades += 1
-                return result
+                self._log(f"Button not green after 5s (state: {button_color}), attempting bet placement anyway", "WARNING")
+                # Don't abort - continue to try placing the bet
+                # The game may not show green button or colors may not be detected correctly
+            else:
+                self._log(f"Bet button is ready - proceeding with bet placement", "INFO")
 
             # Place bet
             self._log(f"Placing bet for round {round_id}...", "INFO")
