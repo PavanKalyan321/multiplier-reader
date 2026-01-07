@@ -149,6 +149,103 @@ class ModelRealtimeListener:
             self._log(f"Error extracting {self.model_name} prediction: {e}", "ERROR")
             return None
 
+    def _display_all_predictions_table(self, signal_data: Dict, selected_model: str) -> None:
+        """
+        Display all 15 model predictions in a formatted table
+
+        Args:
+            signal_data: Complete signal data from analytics_round_signals
+            selected_model: Name of the user-selected model to highlight
+        """
+        try:
+            # Extract payload
+            payload = signal_data.get("payload", {})
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+
+            predictions = payload.get("modelPredictions", {}).get("automl", [])
+
+            if not predictions:
+                self._log("No predictions found in payload", "WARNING")
+                return
+
+            round_id = signal_data.get("round_id", "N/A")
+            pattern = signal_data.get("pattern_match_type", "UNKNOWN")
+
+            # Build table
+            lines = []
+
+            # Header
+            lines.append("=" * 85)
+            lines.append(f"{'AZURE AI FOUNDRY - ROUND #' + str(round_id) + ' PREDICTIONS':^85}")
+            lines.append("=" * 85)
+
+            # Column headers
+            lines.append(f"{'Model':<22} {'Prediction':<12} {'Confidence':<12} {'Range':<18} {'Strategy':<12} {'Bet?':<8}")
+            lines.append("-" * 85)
+
+            # Data rows
+            total_confidence = 0
+            total_prediction = 0
+            bet_count = 0
+
+            for pred in predictions:
+                model_name = pred.get("model_name", "Unknown")
+                predicted_mult = pred.get("predicted_multiplier", 0.0)
+                confidence = pred.get("confidence", 0.0)
+                range_vals = pred.get("range", [0, 0])
+                strategy = pred.get("strategy", "unknown")
+                should_bet = pred.get("bet", False)
+
+                # Accumulate statistics
+                total_confidence += confidence
+                total_prediction += predicted_mult
+                if should_bet:
+                    bet_count += 1
+
+                # Format range
+                range_str = f"[{range_vals[0]:.1f}-{range_vals[1]:.1f}]"
+
+                # Format bet recommendation
+                bet_str = "YES" if should_bet else "NO"
+
+                # Highlight selected model
+                if model_name == selected_model:
+                    line = f"→ {model_name:<20} {predicted_mult:>6.1f}x{'':<5} {confidence*100:>6.1f}%{'':<5} {range_str:<18} {strategy:<12} {bet_str:<8}"
+                else:
+                    line = f"  {model_name:<20} {predicted_mult:>6.1f}x{'':<5} {confidence*100:>6.1f}%{'':<5} {range_str:<18} {strategy:<12} {bet_str:<8}"
+
+                lines.append(line)
+
+            # Statistics
+            lines.append("-" * 85)
+            lines.append("ENSEMBLE STATISTICS")
+
+            avg_prediction = total_prediction / len(predictions) if predictions else 0
+            avg_confidence = total_confidence / len(predictions) if predictions else 0
+
+            lines.append(f"  Average Prediction: {avg_prediction:.2f}x | Average Confidence: {avg_confidence*100:.1f}% | Consensus: {bet_count}/{len(predictions)}")
+            lines.append(f"  Pattern: {pattern}")
+
+            # Selected model summary
+            selected_pred = next((p for p in predictions if p.get("model_name") == selected_model), None)
+            if selected_pred:
+                lines.append("-" * 85)
+                pred_mult = selected_pred.get("predicted_multiplier", 0)
+                pred_conf = selected_pred.get("confidence", 0)
+                pred_bet = selected_pred.get("bet", False)
+                status = "QUALIFIED ✓" if pred_bet else "NOT QUALIFIED"
+                lines.append(f"SELECTED MODEL: {selected_model} → {pred_mult:.1f}x ({pred_conf*100:.0f}% confidence) - {status}")
+
+            lines.append("=" * 85)
+
+            # Print table
+            for line in lines:
+                print(line)
+
+        except Exception as e:
+            self._log(f"Error displaying predictions table: {e}", "ERROR")
+
     def check_bet_criteria(self, predicted_mult: float, range_min: float, range_max: float) -> tuple:
         """Check if bet meets criteria
 
@@ -335,6 +432,10 @@ class ModelRealtimeListener:
         try:
             # Extract model prediction
             model_pred = self.extract_model_prediction(signal_data)
+
+            # Display all 15 model predictions in table format
+            self._display_all_predictions_table(signal_data, self.model_name)
+
             if not model_pred:
                 result["status"] = "failed"
                 result["error_message"] = f"{self.model_name} prediction not found in payload"
