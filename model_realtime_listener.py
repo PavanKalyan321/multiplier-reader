@@ -433,13 +433,18 @@ class ModelRealtimeListener:
         try:
             balance = self.balance_reader.read_balance()
             if balance is not None:
-                self._log(f"Current balance: {balance}", "INFO")
-                return balance
+                # Validate balance is reasonable
+                if balance > 0:
+                    self._log(f"Current balance: {balance:.2f}", "INFO")
+                    return balance
+                else:
+                    self._log(f"Balance is non-positive: {balance}", "WARNING")
+                    return None
             else:
-                self._log("Failed to read balance", "WARNING")
+                self._log("Failed to read balance - OCR could not extract value from region", "WARNING")
                 return None
         except Exception as e:
-            self._log(f"Error reading balance: {e}", "WARNING")
+            self._log(f"Error reading balance: {str(e)}", "WARNING")
             return None
 
     def calculate_balance_change(self, current_balance: Optional[float]) -> Tuple[bool, Optional[float]]:

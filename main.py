@@ -854,15 +854,16 @@ def pycaret_trading():
         print("\nUsing configured Supabase credentials")
 
         # Initialize components
-        screen_capture = ScreenCapture(config.multiplier_region)
-        multiplier_reader = MultiplierReader(screen_capture)
+        screen_capture_multiplier = ScreenCapture(config.multiplier_region)
+        screen_capture_balance = ScreenCapture(config.balance_region)
+        multiplier_reader = MultiplierReader(screen_capture_multiplier)
         game_actions = GameActions(config.bet_button_point)
 
         # Create and start real-time listener
         listener = ModelRealtimeListener(
             game_actions=game_actions,
             multiplier_reader=multiplier_reader,
-            screen_capture=screen_capture,
+            screen_capture=screen_capture_balance,
             supabase_url=supabase_url,
             supabase_key=supabase_key,
             model_name=model_name,
