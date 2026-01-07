@@ -99,7 +99,6 @@ class ModelRealtimeListener:
         self.qualified_bets = 0
         self.successful_trades = 0
         self.failed_trades = 0
-        self.processing_signal = False
         self.consecutive_losses = 0
 
         # Local round tracking array
@@ -247,8 +246,8 @@ class ModelRealtimeListener:
                 pred_mult = selected_pred.get("predicted_multiplier", 0)
                 pred_conf = selected_pred.get("confidence", 0)
                 pred_bet = selected_pred.get("bet", False)
-                status = "QUALIFIED ✓" if pred_bet else "NOT QUALIFIED"
-                lines.append(f"SELECTED MODEL: {selected_model} → {pred_mult:.1f}x ({pred_conf*100:.0f}% confidence) - {status}")
+                status = "QUALIFIED [YES]" if pred_bet else "NOT QUALIFIED [NO]"
+                lines.append(f"SELECTED MODEL: {selected_model} => {pred_mult:.1f}x ({pred_conf*100:.0f}% confidence) - {status}")
 
             lines.append("=" * 85)
 
@@ -762,7 +761,7 @@ class ModelRealtimeListener:
             return result
 
     async def on_signal_received(self, payload: Dict[str, Any]):
-        """Handle incoming signal from subscription
+        """Handle incoming signal from subscription (non-blocking)
 
         Args:
             payload: Signal payload from Supabase
@@ -781,28 +780,38 @@ class ModelRealtimeListener:
 
             self._log(f"New signal received: Round#{round_id}, Signal ID: {signal_id}", "INFO")
 
-            # Prevent concurrent signal processing
-            if self.processing_signal:
-                self._log(f"Already processing a signal", "WARNING")
-                return
-
-            self.processing_signal = True
-
-            try:
-                # Execute the signal
-                result = await self.execute_pycaret_signal(signal_data)
-                self._log(
-                    f"Execution result: {result['status']} | "
-                    f"Qualified: {result['bet_qualified']} | "
-                    f"Final: {result['final_multiplier']:.2f}x",
-                    "INFO"
-                )
-            finally:
-                self.processing_signal = False
+            # Spawn execution as background task (non-blocking)
+            # This allows new signals to be received while previous signal is processing
+            asyncio.create_task(self._execute_signal_background(signal_data))
 
         except Exception as e:
             self._log(f"Error processing signal: {e}", "ERROR")
-            self.processing_signal = False
+
+    async def _execute_signal_background(self, signal_data: Dict[str, Any]):
+        """Execute signal in background task
+
+        Args:
+            signal_data: Signal data from database
+        """
+        try:
+            # Prevent concurrent processing of SAME round
+            round_id = signal_data.get("round_id")
+
+            # Check if we're already processing this round
+            if any(r.round_id == round_id and r.status in ["signal_received", "bet_qualified"] for r in self.rounds):
+                self._log(f"Round {round_id} already being processed", "WARNING")
+                return
+
+            # Execute the signal
+            result = await self.execute_pycaret_signal(signal_data)
+            self._log(
+                f"Execution result: {result['status']} | "
+                f"Qualified: {result['bet_qualified']} | "
+                f"Final: {result['final_multiplier']:.2f}x",
+                "INFO"
+            )
+        except Exception as e:
+            self._log(f"Error in background execution: {e}", "ERROR")
 
     async def listen(self):
         """Start listening to analytics_round_signals table in real-time"""
