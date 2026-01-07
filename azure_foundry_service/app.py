@@ -5,6 +5,7 @@ FastAPI application for predictions using 15 AutoML models
 
 import os
 import json
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -37,10 +38,10 @@ class PredictionRequest(BaseModel):
 
 class PredictionResponse(BaseModel):
     status: str
-    signal_id: int = None
+    signal_id: Optional[int] = None
     models_executed: int = 0
     ensemble_confidence: float = 0.0
-    error: str = None
+    error: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -48,6 +49,7 @@ class HealthResponse(BaseModel):
     models_loaded: int = 0
     supabase_connected: bool = False
     timestamp: str = ""
+    error: Optional[str] = None
 
 
 # API Endpoints
