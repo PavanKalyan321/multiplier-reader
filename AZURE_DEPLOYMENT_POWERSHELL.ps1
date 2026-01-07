@@ -4,19 +4,19 @@
 
 # Color output for better readability
 function Write-Success {
-    Write-Host "✅ $args" -ForegroundColor Green
+    Write-Host "[OK] $args" -ForegroundColor Green
 }
 
 function Write-Info {
-    Write-Host "ℹ️  $args" -ForegroundColor Cyan
+    Write-Host "[INFO] $args" -ForegroundColor Cyan
 }
 
 function Write-Warning-Custom {
-    Write-Host "⚠️  $args" -ForegroundColor Yellow
+    Write-Host "[WARNING] $args" -ForegroundColor Yellow
 }
 
 function Write-Error-Custom {
-    Write-Host "❌ $args" -ForegroundColor Red
+    Write-Host "[ERROR] $args" -ForegroundColor Red
 }
 
 # Start
@@ -304,20 +304,20 @@ Write-Host "`n" + ("=" * 80) -ForegroundColor Magenta
 Write-Host "DEPLOYMENT COMPLETE!" -ForegroundColor Green
 Write-Host ("=" * 80) -ForegroundColor Magenta
 
-Write-Host "`n📊 Summary:" -ForegroundColor Cyan
-Write-Host "  ✅ Resource Group: $resourceGroup"
-Write-Host "  ✅ Container Registry: $registryName"
-Write-Host "  ✅ Container App: $containerAppName"
-Write-Host "  ✅ Azure Endpoint: https://$appUrl"
-Write-Host "  ✅ Supabase Connected: Yes"
+Write-Host "`nDEPLOYMENT SUMMARY:" -ForegroundColor Cyan
+Write-Host "  [OK] Resource Group: $resourceGroup"
+Write-Host "  [OK] Container Registry: $registryName"
+Write-Host "  [OK] Container App: $containerAppName"
+Write-Host "  [OK] Azure Endpoint: https://$appUrl"
+Write-Host "  [OK] Supabase Connected: Yes"
 
-Write-Host "`n🚀 Next Steps:" -ForegroundColor Cyan
+Write-Host "`nNEXT STEPS:" -ForegroundColor Cyan
 Write-Host "  1. Verify .env file contains the endpoint URL"
 Write-Host "  2. Start your bot: python main.py"
 Write-Host "  3. Test the connection by completing a round"
 Write-Host "  4. Check bot logs for Azure prediction messages"
 
-Write-Host "`n📝 Useful Commands:" -ForegroundColor Cyan
+Write-Host "`nUSEFUL COMMANDS:" -ForegroundColor Cyan
 Write-Host "  View logs:"
 Write-Host "    az containerapp logs show --name $containerAppName --resource-group $resourceGroup --follow"
 Write-Host ""
