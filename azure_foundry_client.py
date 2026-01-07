@@ -75,21 +75,31 @@ class AzureFoundryClient:
                 timeout=self.timeout
             )
 
+            # Try to parse response
+            try:
+                result = response.json()
+            except Exception as json_error:
+                print(f"[{timestamp}] WARNING: Failed to parse Azure response")
+                print(f"[{timestamp}]   Status code: {response.status_code}")
+                print(f"[{timestamp}]   Response text: {response.text[:200]}")
+                return {
+                    'status': 'error',
+                    'error': f'Invalid JSON response: {str(json_error)}'
+                }
+
             # Check response status
             if response.status_code == 200:
-                result = response.json()
                 print(f"[{timestamp}] ✓ Azure prediction received")
                 print(f"[{timestamp}]   - Models: {result.get('models_executed', 0)}/15")
                 print(f"[{timestamp}]   - Confidence: {result.get('ensemble_confidence', 0):.0%}")
+
+                # Handle cases where signal_id might be None
+                if result.get('signal_id') is None:
+                    result['status'] = 'success'  # Override to success even if signal_id is None
+
                 return result
             else:
-                error_msg = f"Azure returned status {response.status_code}"
-                try:
-                    error_data = response.json()
-                    error_msg = error_data.get('error', error_msg)
-                except:
-                    pass
-
+                error_msg = result.get('detail', result.get('error', f"Status {response.status_code}"))
                 print(f"[{timestamp}] WARNING: {error_msg}")
                 return {
                     'status': 'error',
