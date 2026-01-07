@@ -508,6 +508,8 @@ class ModelRealtimeListener:
                 return result
 
             # Check button color - must be GREEN to place bet
+            # Give the UI a moment to update after round ends
+            time.sleep(0.5)
             self._log(f"Checking bet button state before placing bet...", "INFO")
             button_ready = self.wait_for_button_ready(max_wait_seconds=30)
 
@@ -515,7 +517,9 @@ class ModelRealtimeListener:
                 result["status"] = "failed"
                 result["error_message"] = "Bet button not in ready state (not green)"
                 round_record.status = "failed"
-                self._log("Bet button is not ready - aborting bet placement", "ERROR")
+                # Get button color for debugging
+                button_color = self.check_button_state()
+                self._log(f"Bet button state: {button_color} - aborting bet placement", "ERROR")
                 self.failed_trades += 1
                 return result
 
@@ -525,9 +529,11 @@ class ModelRealtimeListener:
 
             if not bet_success:
                 result["status"] = "failed"
-                result["error_message"] = "Failed to place bet"
+                result["error_message"] = "Failed to place bet - click action returned False"
                 round_record.status = "failed"
-                self._log("Failed to place bet", "ERROR")
+                # Check button state for debugging
+                button_state = self.check_button_state()
+                self._log(f"Bet placement failed | Button state: {button_state}", "ERROR")
                 self.failed_trades += 1
                 return result
 
