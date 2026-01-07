@@ -495,48 +495,38 @@ class ModelRealtimeListener:
             )
 
     def validate_pre_bet_conditions(self) -> Tuple[bool, str]:
-        """Validate all conditions before placing a bet
+        """Validate all conditions before placing a bet (balance check skipped)
 
         Returns:
             Tuple: (is_valid: bool, reason: str)
         """
-        # Check 1: Verify balance exists and is reasonable
-        current_balance = self.read_current_balance()
-        if current_balance is None:
-            return False, "Cannot read current balance"
-
-        if current_balance <= 0:
-            return False, f"Balance is zero or negative: {current_balance}"
-
-        if current_balance < self.current_stake:
-            return False, f"Insufficient balance {current_balance} for stake {self.current_stake}"
-
-        # Check 2: Verify button is GREEN right now (final check)
+        # Check 1: Verify button is GREEN right now (CRITICAL)
         button_state = self.check_button_state()
         if button_state != 'green':
             return False, f"Button is {button_state}, not GREEN - cannot place bet"
 
-        # Check 3: Verify no active multiplier (round not started)
+        # Check 2: Verify no active multiplier (round not started)
         try:
             current_mult = self.multiplier_reader.read_multiplier()
             if current_mult is not None and current_mult > 1.0:
                 return False, f"Multiplier already active at {current_mult:.2f}x - round in progress"
-        except:
+        except Exception as e:
+            self._log(f"Warning: Could not check multiplier: {e}", "WARNING")
             pass  # If can't read multiplier, continue
 
-        # Check 4: Verify we haven't processed this round yet
-        round_id = None
+        # Check 3: Verify we haven't processed this round yet (DUPLICATE PREVENTION)
         if hasattr(self, '_current_round_id'):
             round_id = self._current_round_id
             existing_round = next((r for r in self.rounds if r.round_id == round_id and r.bet_placed), None)
             if existing_round:
                 return False, f"Bet already placed in round {round_id}"
 
+        # BALANCE CHECK SKIPPED - will attempt to place bet regardless
         self._log(
-            f"Pre-bet validation PASSED | Balance: {current_balance:.2f} | Button: {button_state} | Stake: {self.current_stake:.2f}",
+            f"Pre-bet validation PASSED | Button: {button_state} | Stake: {self.current_stake:.2f}",
             "INFO"
         )
-        return True, "All conditions valid"
+        return True, "All critical conditions valid"
 
     async def execute_pycaret_signal(self, signal_data: Dict[str, Any]) -> Dict[str, Any]:
         """Execute trading based on PyCaret signal with criteria
@@ -662,17 +652,7 @@ class ModelRealtimeListener:
             # All validations passed - safe to place bet
             self._log(f"ALL PRE-BET CHECKS PASSED - Proceeding with bet placement", "INFO")
 
-            # Record balance BEFORE bet (final check)
-            self.previous_balance = self.read_current_balance()
-            if self.previous_balance is None:
-                result["status"] = "failed"
-                result["error_message"] = "Failed to read balance before bet"
-                round_record.status = "failed"
-                self._log(f"Cannot read balance - aborting bet", "ERROR")
-                self.failed_trades += 1
-                return result
-
-            # FINAL BUTTON CHECK - right before click
+            # FINAL BUTTON CHECK - right before click (race condition detection)
             final_button_state = self.check_button_state()
             if final_button_state != 'green':
                 result["status"] = "failed"
@@ -682,8 +662,14 @@ class ModelRealtimeListener:
                 self.failed_trades += 1
                 return result
 
+            # Try to read balance for tracking (not blocking if fails)
+            self.previous_balance = self.read_current_balance()
+            if self.previous_balance is None:
+                self._log(f"Note: Could not read balance before bet", "WARNING")
+                self.previous_balance = 0  # Use 0 as placeholder
+
             # Place bet
-            self._log(f"CLICKING BET BUTTON for round {round_id} | Stake: {self.current_stake:.2f} | Balance: {self.previous_balance:.2f}", "INFO")
+            self._log(f"CLICKING BET BUTTON for round {round_id} | Stake: {self.current_stake:.2f}", "INFO")
             bet_success = self.game_actions.click_bet_button()
 
             if not bet_success:
