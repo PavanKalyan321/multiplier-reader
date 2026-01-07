@@ -715,15 +715,14 @@ class ModelRealtimeListener:
                 await asyncio.sleep(0.2)
 
             if not result["cashout_executed"]:
-                self._log(f"Cashout not executed (timeout)", "WARNING")
+                self._log(f"Cashout not executed (timeout or crashed)", "WARNING")
                 result["final_multiplier"] = max_mult
                 round_record.final_multiplier = max_mult
 
             result["status"] = "completed"
             round_record.status = "completed"
-            self.successful_trades += 1
             self._log(
-                f"Round {round_id} completed - Cashout at {result['final_multiplier']:.2f}x",
+                f"Round {round_id} completed - Final multiplier: {result['final_multiplier']:.2f}x",
                 "INFO"
             )
 
@@ -743,11 +742,19 @@ class ModelRealtimeListener:
                     # Adjust stake for next bet
                     self.adjust_stake(is_win)
 
-                    # Update tracking
+                    # Update tracking - only count here (not earlier)
                     if is_win:
                         self.successful_trades += 1
                     else:
                         self.failed_trades += 1
+                else:
+                    # Could not read balance change, mark as failed
+                    self._log("Could not determine win/loss from balance", "WARNING")
+                    self.failed_trades += 1
+            else:
+                # Could not read current balance, mark as failed
+                self._log("Could not read current balance for tracking", "WARNING")
+                self.failed_trades += 1
 
             return result
 
