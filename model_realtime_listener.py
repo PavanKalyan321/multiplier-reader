@@ -710,8 +710,13 @@ class ModelRealtimeListener:
                 return result
 
             # Monitor multiplier and execute cashout
+            # Use local variables to avoid interference from new signals
+            round_cashout_mult = cashout_mult
+            round_predicted_mult = predicted_mult
+            round_round_id = round_id
+
             self._log(
-                f"Monitoring for cashout at {cashout_mult:.2f}x (pred: {predicted_mult:.2f}x)...",
+                f"[Round {round_round_id}] Monitoring for cashout at {round_cashout_mult:.2f}x (pred: {round_predicted_mult:.2f}x)...",
                 "INFO"
             )
 
@@ -733,17 +738,15 @@ class ModelRealtimeListener:
                     elapsed = time.time() - start_time
                     if elapsed - (last_display - start_time) >= 1.0:
                         self._log(
-                            f"Current: {current_mult:.2f}x | "
-                            f"Target: {cashout_mult:.2f}x | "
-                            f"Predicted: {predicted_mult:.2f}x",
+                            f"[Round {round_round_id}] Current: {current_mult:.2f}x | Target: {round_cashout_mult:.2f}x | Predicted: {round_predicted_mult:.2f}x",
                             "INFO"
                         )
                         last_display = time.time()
 
                     # Check if we reached cashout multiplier
-                    if current_mult >= cashout_mult:
+                    if current_mult >= round_cashout_mult:
                         self._log(
-                            f"CASHOUT! {current_mult:.2f}x >= {cashout_mult:.2f}x",
+                            f"[Round {round_round_id}] CASHOUT! {current_mult:.2f}x >= {round_cashout_mult:.2f}x",
                             "INFO"
                         )
 
