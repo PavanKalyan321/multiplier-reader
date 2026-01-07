@@ -156,7 +156,7 @@ class MultiplierReaderApp:
                 'multiplier': round_data.max_multiplier,
                 'timestamp': datetime.fromtimestamp(round_data.end_time).isoformat(),
                 'duration': round_data.duration,
-                'crash_detected': round_data.crash_detected
+                'crash_at': round_data.crash_multiplier
             })
         return rounds
 

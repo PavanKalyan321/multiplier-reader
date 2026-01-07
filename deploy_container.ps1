@@ -1,8 +1,9 @@
 # Deploy Container App to Azure
+# Get credentials from: az acr credential show --resource-group aviator-rg --name aviatorai
 $username = "aviatorai"
-$password = "glIqsMTT5jVo2WwtqlwDHkczEC3rjIIx56Z8nwYp1p+ACRD0RlDi"
-$supabaseUrl = "https://zofojiubrykbtmstfhzx.supabase.co"
-$supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s"
+$password = "<YOUR-ACR-PASSWORD>"  # Get from: az acr credential show
+$supabaseUrl = "<YOUR-SUPABASE-URL>"
+$supabaseKey = "<YOUR-SUPABASE-KEY>"
 
 Write-Host "Creating Container App..." -ForegroundColor Cyan
 
