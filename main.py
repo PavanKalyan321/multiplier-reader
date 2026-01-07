@@ -4,6 +4,7 @@ import sys
 import json
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 from config import load_config, get_default_region
 from screen_capture import ScreenCapture
 from multiplier_reader import MultiplierReader
@@ -11,6 +12,9 @@ from game_tracker import GameTracker
 from supabase_client import SupabaseLogger
 from auto_refresh import AutoRefresher
 from azure_foundry_client import AzureFoundryClient
+
+# Load environment variables from .env file
+load_dotenv()
 # Try importing advanced ML system first, then fall back to multi-model, then single model
 try:
     from ml_system.prediction_engine import PredictionEngine
@@ -316,13 +320,14 @@ class MultiplierReaderApp:
                 self.predictor.train(lookback=5)
 
         # Step 2: Make prediction for NEXT round and save to analytics table
-        if round_id:  # Only make prediction if round was saved successfully
-            self._make_prediction_for_next_round(
-                round_summary.round_number + 1,
-                last_round_id=round_id,
-                last_round_multiplier=round_summary.max_multiplier,
-                round_timestamp=round_end_time
-            )
+        # COMMENTED OUT: Using Azure Foundry for predictions instead of local ML
+        # if round_id:  # Only make prediction if round was saved successfully
+        #     self._make_prediction_for_next_round(
+        #         round_summary.round_number + 1,
+        #         last_round_id=round_id,
+        #         last_round_multiplier=round_summary.max_multiplier,
+        #         round_timestamp=round_end_time
+        #     )
 
         print()
         timestamp = datetime.now().strftime("%H:%M:%S")
