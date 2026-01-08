@@ -28,6 +28,7 @@ from supabase_automated_trading import run_supabase_automated_trading
 from betting_helpers import demo_mode_simple_bet, demo_mode_real_multiplier, demo_mode_continuous
 from pycaret_signal_listener import PyCaretSignalListener
 from model_realtime_listener import ModelRealtimeListener
+from rules_based_trader import RulesBasedTrader
 
 
 class Colors:
@@ -899,6 +900,63 @@ def pycaret_trading():
         input("\nPress Enter to return to menu...")
 
 
+def rules_based_trading():
+    """Run rules-based trader (NO AI, purely rules-driven)"""
+    try:
+        config = load_game_config()
+        if not config or not config.is_valid():
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"\n[{timestamp}] ERROR: Configuration not set up!")
+            print("Please run option 2 to configure regions first.")
+            input("\nPress Enter to return to menu...")
+            return
+
+        print("\n" + "=" * 70)
+        print("RULES-BASED TRADER (NO AI - PURELY RULES-DRIVEN)".center(70))
+        print("=" * 70)
+        print("\nThis trader bets and cashouts PURELY based on rules configured")
+        print("in betting_rules_config.json. No AI predictions are used.\n")
+        print("Betting rules include:")
+        print("  - Regime detection (TIGHT/NORMAL/LOOSE/VOLATILE)")
+        print("  - Smart stake compounding (×1.4 win, ÷1.4 loss)")
+        print("  - Adaptive cashout targets (1.5x/1.85x/2.5x)")
+        print("  - Entry filters (skip unfavorable conditions)")
+        print("  - Cooldown system (protect after losses)")
+        print("  - Session management (auto-stop at profit/loss limits)\n")
+
+        # Use saved Supabase credentials
+        supabase_url = "https://zofojiubrykbtmstfhzx.supabase.co"
+        supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZm9qaXVicnlrYnRtc3RmaHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4NzU0OTEsImV4cCI6MjA3OTQ1MTQ5MX0.mxwvnhT-ouONWff-gyqw67lKon82nBx2fsbd8meyc8s"
+
+        # Initialize components
+        screen_capture_multiplier = ScreenCapture(config.multiplier_region)
+        screen_capture_balance = ScreenCapture(config.balance_region)
+        multiplier_reader = MultiplierReader(screen_capture_multiplier)
+        game_actions = GameActions(config.bet_button_point)
+
+        # Create and start rules-based trader
+        trader = RulesBasedTrader(
+            game_actions=game_actions,
+            multiplier_reader=multiplier_reader,
+            screen_capture=screen_capture_balance,
+            supabase_url=supabase_url,
+            supabase_key=supabase_key
+        )
+
+        print("Press Ctrl+C to stop\n")
+        asyncio.run(trader.run())
+
+    except KeyboardInterrupt:
+        print("\n\nTrader stopped by user.")
+    except Exception as e:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        input("\nPress Enter to return to menu...")
+
+
 def main():
     """Main entry point with menu system"""
     # Migrate old config if needed
@@ -946,6 +1004,9 @@ def main():
 
         elif action == 'pycaret':
             pycaret_trading()
+
+        elif action == 'rules':
+            rules_based_trading()
 
         elif action == 'exit':
             timestamp = datetime.now().strftime("%H:%M:%S")

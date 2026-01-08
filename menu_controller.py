@@ -63,7 +63,11 @@ class MenuController:
         print("   - Real-time listener for any AutoML model (PyCaret, XGBoost, CatBoost, etc.)")
         print()
 
-        print("8. Exit")
+        print("8. Rules-Based Trader (NO AI)")
+        print("   - Bet and cashout PURELY based on rules (no AI predictions)")
+        print()
+
+        print("9. Exit")
         print("   - Close the application")
         print()
 
@@ -73,27 +77,27 @@ class MenuController:
         """Get user menu choice with validation
 
         Returns:
-            int: Menu choice (1-8)
+            int: Menu choice (1-9)
         """
         while True:
             try:
-                choice = input("\nEnter your choice (1-8): ").strip()
+                choice = input("\nEnter your choice (1-9): ").strip()
 
-                if choice not in ['1', '2', '3', '4', '5', '6', '7', '8']:
-                    print("Invalid choice. Please enter 1, 2, 3, 4, 5, 6, 7, or 8.")
+                if choice not in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
+                    print("Invalid choice. Please enter 1-9.")
                     continue
 
                 return int(choice)
 
             except (ValueError, KeyboardInterrupt):
-                print("Invalid input. Please enter a number between 1 and 8.")
+                print("Invalid input. Please enter a number between 1 and 9.")
                 continue
 
     def run(self) -> str:
         """Run the menu and return selected action
 
         Returns:
-            str: Action to perform ('monitor', 'configure', 'test', 'websocket', 'supabase', 'demo', 'pycaret', or 'exit')
+            str: Action to perform ('monitor', 'configure', 'test', 'websocket', 'supabase', 'demo', 'pycaret', 'rules', or 'exit')
         """
         self.display_menu()
         choice = self.get_user_choice()
@@ -130,6 +134,9 @@ class MenuController:
             return 'pycaret'
 
         elif choice == 8:
+            return 'rules'
+
+        elif choice == 9:
             return 'exit'
 
     def print_section_header(self, title):
