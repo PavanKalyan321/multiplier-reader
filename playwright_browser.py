@@ -12,7 +12,7 @@ from typing import Optional, Dict, Any
 
 try:
     from playwright.async_api import async_playwright, Browser, BrowserContext, Page
-    from playwright_stealth import stealth_async
+    from playwright_stealth import stealth
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
@@ -92,7 +92,7 @@ class PlaywrightBrowserManager:
             self.page = await self.context.new_page()
 
             # Apply stealth mode to avoid detection
-            await stealth_async(self.page)
+            await stealth(self.page)
 
             # Set reasonable timeout
             self.page.set_default_timeout(30000)  # 30 seconds
