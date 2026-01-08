@@ -2,6 +2,7 @@
 import asyncio
 import time
 import json
+import os
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 from supabase.client import AsyncClient
@@ -13,6 +14,9 @@ from balance_reader import BalanceReader
 import pyautogui
 import numpy as np
 from PIL import ImageGrab
+
+# Import betting rules engine
+from betting_rules_engine import BettingRulesEngine
 
 
 class RoundRecord:
@@ -103,6 +107,11 @@ class ModelRealtimeListener:
 
         # Local round tracking array
         self.rounds: List[RoundRecord] = []
+
+        # Initialize betting rules engine
+        config_path = os.path.join(os.path.dirname(__file__), "betting_rules_config.json")
+        self.rules_engine = BettingRulesEngine(config_path)
+        self._log("Betting rules engine initialized", "INFO")
 
     def _log(self, message: str, level: str = "INFO"):
         """Log message with timestamp"""
@@ -470,29 +479,12 @@ class ModelRealtimeListener:
         return is_win, change
 
     def adjust_stake(self, is_win: bool):
-        """Adjust stake for next bet based on win/loss
+        """DEPRECATED: Stake adjustment now handled by rules engine
 
-        Args:
-            is_win: True if last bet was a win, False if loss
+        This method is kept for backward compatibility but is no longer used.
+        Stake management is now handled by BettingRulesEngine.stake_manager.
         """
-        old_stake = self.current_stake
-
-        if is_win:
-            # Increase stake by 30% on win
-            self.current_stake = self.current_stake * 1.3
-            self.consecutive_losses = 0
-            self._log(
-                f"WIN! Stake increased: {old_stake:.2f} → {self.current_stake:.2f} (+30%)",
-                "INFO"
-            )
-        else:
-            # Reset to base on loss
-            self.current_stake = self.base_stake
-            self.consecutive_losses += 1
-            self._log(
-                f"LOSS! Stake reset to base: {old_stake:.2f} → {self.current_stake:.2f}",
-                "INFO"
-            )
+        pass
 
     def validate_pre_bet_conditions(self) -> Tuple[bool, str]:
         """Validate all conditions before placing a bet (balance check skipped)
@@ -608,17 +600,30 @@ class ModelRealtimeListener:
                 self._log(f"Round {round_id} does not meet betting criteria - SKIPPING", "INFO")
                 return result
 
+            # INJECTION POINT #1: Evaluate entry with rules engine
+            entry_approved, entry_reason = self.rules_engine.evaluate_entry(predicted_mult, confidence)
+
+            if not entry_approved:
+                result["status"] = "skipped"
+                result["error_message"] = f"Rules engine: {entry_reason}"
+                round_record.status = "signal_received"
+                round_record.error_message = entry_reason
+                self._log(f"Round {round_id} filtered by rules engine - {entry_reason}", "INFO")
+                return result
+
             # Criteria met - proceed with betting
             result["bet_qualified"] = True
             round_record.bet_qualified = True
             self.qualified_bets += 1
 
-            cashout_mult = predicted_mult * self.safety_margin
+            # INJECTION POINT #3: Calculate cashout with rules engine
+            cashout_mult, cashout_mode = self.rules_engine.calculate_cashout_target(predicted_mult)
+            result["cashout_mode"] = cashout_mode
 
             self._log(
                 f"Round {round_id}: QUALIFIED FOR BET | "
                 f"Predicted: {predicted_mult:.2f}x | "
-                f"Cashout at: {cashout_mult:.2f}x (20% buffer)",
+                f"Cashout at: {cashout_mult:.2f}x ({cashout_mode} mode)",
                 "INFO"
             )
 
@@ -662,6 +667,12 @@ class ModelRealtimeListener:
                 self.failed_trades += 1
                 return result
 
+            # INJECTION POINT #4: Calculate stake with rules engine
+            stake_for_bet, compound_level = self.rules_engine.calculate_stake_for_bet()
+            self.current_stake = stake_for_bet  # Update current stake for this bet
+            result["stake"] = self.current_stake
+            result["compound_level"] = compound_level
+
             # Try to read balance for tracking (not blocking if fails)
             self.previous_balance = self.read_current_balance()
             if self.previous_balance is None:
@@ -669,7 +680,7 @@ class ModelRealtimeListener:
                 self.previous_balance = 0  # Use 0 as placeholder
 
             # Place bet
-            self._log(f"CLICKING BET BUTTON for round {round_id} | Stake: {self.current_stake:.2f}", "INFO")
+            self._log(f"CLICKING BET BUTTON for round {round_id} | Stake: {self.current_stake:.2f} | Compound: {compound_level}", "INFO")
             bet_success = self.game_actions.click_bet_button()
 
             if not bet_success:
@@ -780,7 +791,7 @@ class ModelRealtimeListener:
                 "INFO"
             )
 
-            # Track balance change and adjust stake for next bet
+            # Track balance change and process round result with rules engine
             time.sleep(1.0)  # Wait for balance to update
             current_balance = self.read_current_balance()
 
@@ -793,10 +804,25 @@ class ModelRealtimeListener:
                     result["balance_after"] = current_balance
                     result["balance_change"] = balance_change
 
-                    # Adjust stake for next bet
-                    self.adjust_stake(is_win)
+                    # INJECTION POINT #5: Process round result with rules engine
+                    should_stop, stop_decision = self.rules_engine.process_round_result(
+                        round_id=round_id,
+                        final_mult=result['final_multiplier'],
+                        pnl=balance_change,
+                        cashout_mode=result.get('cashout_mode', 'default')
+                    )
 
-                    # Update tracking - only count here (not earlier)
+                    # Check if session should stop
+                    if should_stop:
+                        self._log(f"SESSION STOP TRIGGERED: {stop_decision.reason}", "WARNING")
+                        summary = self.rules_engine.session_tracker.get_summary()
+                        self._log(f"Final session summary: {summary}", "INFO")
+                        result["session_stop"] = True
+                        result["stop_reason"] = stop_decision.reason
+                        # Stop the listener
+                        asyncio.create_task(self.stop())
+
+                    # Update tracking
                     if is_win:
                         self.successful_trades += 1
                     else:

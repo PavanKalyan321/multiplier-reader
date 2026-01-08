@@ -1,0 +1,99 @@
+{
+  "session": {
+    "duration_minutes": 30,
+    "profit_target": 200,
+    "max_loss": 200
+  },
+  "capital": {
+    "min_balance": 1000,
+    "preferred_balance": 1200,
+    "start_bet": 15,
+    "max_bet": 40
+  },
+  "stake_compounding": {
+    "enabled": true,
+    "win_multiplier": 1.4,
+    "loss_divisor": 1.4,
+    "max_steps": 3,
+    "reset_on_high_mult": 10
+  },
+  "cashout": {
+    "mode": "fixed",
+    "default": {
+      "multiplier": 1.85
+    },
+    "defensive": {
+      "multiplier": 1.5,
+      "trigger_loss": 80
+    },
+    "aggressive": {
+      "multiplier": 2.5,
+      "min_profit": 100,
+      "require_regime": "LOOSE",
+      "window_duration_min": 15
+    }
+  },
+  "entry_filters": {
+    "do_not_bet_if": {
+      "previous_round_gte": 10,
+      "last_3_any_gte": 20,
+      "compound_level_gte": 4
+    },
+    "bet_only_if": {
+      "previous_round_between": [1.4, 6.0],
+      "allow_volatile": false
+    }
+  },
+  "cooldowns": {
+    "after_high_mult": {
+      "threshold": 10,
+      "skip_rounds": 2,
+      "reset_stake": true
+    },
+    "after_consecutive_losses": {
+      "count": 2,
+      "stake_min": 25,
+      "skip_rounds": 2
+    },
+    "after_max_compound": {
+      "max_steps": 3,
+      "skip_rounds": 1
+    }
+  },
+  "regime_model": {
+    "enabled": true,
+    "evaluation_window_rounds": 60,
+    "cache_duration_seconds": 180
+  },
+  "regime_thresholds": {
+    "TIGHT": {
+      "median_max": 2.0,
+      "pct_below_1_5x_min": 40
+    },
+    "NORMAL": {
+      "median_range": [2.0, 2.8]
+    },
+    "LOOSE": {
+      "median_min": 2.5
+    },
+    "VOLATILE": {
+      "median_min": 3.0,
+      "high_tail_freq_min": 15
+    }
+  },
+  "stop_conditions": {
+    "profit_target": 200,
+    "max_loss": 200,
+    "duration_minutes": 30,
+    "early_abort": {
+      "enabled": true,
+      "loss_in_first_window": 120,
+      "aggressive_failures": 2
+    }
+  },
+  "logging": {
+    "log_to_console": true,
+    "log_to_db": false,
+    "log_level": "INFO"
+  }
+}
