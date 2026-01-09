@@ -17,12 +17,14 @@ class PlaywrightConfig:
     """Manage Playwright configuration"""
 
     DEFAULT_CONFIG = {
-        "game_url": "https://example.com/aviator",
+        "game_url": "https://demo.aviatrix.bet/?cid=cricazaprod&isDemo=true&lang=en&sessionToken=",
         "selectors": {
             "multiplier": ".game-score .game-score-char",
             "balance": ".header-balance .text-subheading-3",
             "bet_button_1": "[data-testid='button-place-bet-1']",
             "bet_button_2": "[data-testid='button-place-bet-2']",
+            "cashout_button_1": "[data-testid='button-cashout-1']",
+            "cashout_button_2": "[data-testid='button-cashout-2']",
             "bet_amount_input_1": "[data-testid='bet-input-amount-1'] input",
             "bet_amount_input_2": "[data-testid='bet-input-amount-2'] input",
             "auto_cashout_input_1": "[data-testid='bet-input-cashout-1'] input",

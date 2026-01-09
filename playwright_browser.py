@@ -12,7 +12,7 @@ from typing import Optional, Dict, Any
 
 try:
     from playwright.async_api import async_playwright, Browser, BrowserContext, Page
-    from playwright_stealth import stealth
+    from playwright_stealth import Stealth
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
@@ -36,12 +36,12 @@ class PlaywrightBrowserManager:
         self.auth_state_file = "auth_state.json"
         self.is_connected = False
 
-    async def initialize(self, headless: bool = False) -> Optional[Page]:
+    async def initialize(self, headless: Optional[bool] = None) -> Optional[Page]:
         """
         Initialize and launch browser
 
         Args:
-            headless: Whether to run in headless mode
+            headless: Whether to run in headless mode (uses config if None)
 
         Returns:
             Playwright page object or None if failed
@@ -52,6 +52,10 @@ class PlaywrightBrowserManager:
 
         try:
             print("[INFO] Initializing Playwright browser...")
+
+            # Use config value if headless not specified
+            if headless is None:
+                headless = self.config.get('browser', {}).get('headless', False)
 
             # Start Playwright
             self.playwright = await async_playwright().start()
@@ -68,13 +72,14 @@ class PlaywrightBrowserManager:
             )
 
             # Browser context with anti-detection
+            browser_config = self.config.get('browser', {})
             context_kwargs = {
-                'user_agent': self.config.get('user_agent',
+                'user_agent': browser_config.get('user_agent',
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
                     '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'),
                 'viewport': {
-                    'width': self.config.get('viewport_width', 1920),
-                    'height': self.config.get('viewport_height', 1080)
+                    'width': browser_config.get('viewport_width', 1920),
+                    'height': browser_config.get('viewport_height', 1080)
                 },
                 'locale': 'en-US',
                 'timezone_id': 'America/New_York',
@@ -92,7 +97,14 @@ class PlaywrightBrowserManager:
             self.page = await self.context.new_page()
 
             # Apply stealth mode to avoid detection
-            await stealth(self.page)
+            stealth = Stealth()
+            await stealth.apply_stealth_async(self.page)
+
+            # Try to focus/bring window to front
+            try:
+                await self.context.pages[0].bring_to_front()
+            except:
+                pass  # Not critical if this fails
 
             # Set reasonable timeout
             self.page.set_default_timeout(30000)  # 30 seconds

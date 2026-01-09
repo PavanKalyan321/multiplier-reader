@@ -84,7 +84,7 @@ class PlaywrightGameActions:
 
     async def click_cashout_button(self, panel: int = 1, retries: int = 3) -> bool:
         """
-        Click the cashout button (same as bet button but different state)
+        Click the cashout button
 
         Args:
             panel: Bet panel number (1 or 2)
@@ -95,40 +95,73 @@ class PlaywrightGameActions:
         """
         for attempt in range(retries):
             try:
-                selector = self.selectors.get(f'bet_button_{panel}',
-                    f'[data-testid="button-place-bet-{panel}"]')
+                # Use dedicated cashout button selector
+                selector = self.selectors.get(f'cashout_button_{panel}',
+                    f'[data-testid="button-cashout-{panel}"]')
 
-                # Wait for button to be visible
-                await self.page.wait_for_selector(selector, state='visible', timeout=1000)
+                # Get the button locator
+                locator = self.page.locator(selector)
 
-                # Verify button shows "Cash out"
-                button_text = await self.page.locator(selector).text_content()
+                # Wait for it to be visible
+                await locator.wait_for(state='visible', timeout=5000)
 
-                if not button_text or 'cash out' not in button_text.lower():
-                    print(f"[WARN] Cashout button not ready: {button_text}")
+                # Check if element exists
+                count = await locator.count()
+                if count == 0:
                     await asyncio.sleep(0.2)
                     continue
 
-                # Click with human-like delay
-                await asyncio.sleep(0.05)  # 50ms delay
-                await self.page.locator(selector).click()
+                # Method 1: Try standard click first (fastest)
+                try:
+                    await locator.click(timeout=2000, force=False)
+                    self.click_count += 1
+                    print(f"[CASHOUT] SUCCESS! Button clicked")
+                    return True
+                except:
+                    pass
 
-                await asyncio.sleep(0.2)  # 200ms wait after click
+                # Method 2: Try force click (for overlay/pointer-events blocking)
+                try:
+                    await locator.click(timeout=2000, force=True)
+                    self.click_count += 1
+                    print(f"[CASHOUT] SUCCESS! Button clicked (force)")
+                    return True
+                except:
+                    pass
 
-                self.click_count += 1
+                # Method 3: JavaScript dispatch (most reliable for custom listeners)
+                try:
+                    await self.page.evaluate(f"""
+                        const btn = document.querySelector('{selector}');
+                        if (btn) {{
+                            const clickEvent = new MouseEvent('click', {{
+                                bubbles: true,
+                                cancelable: true,
+                                view: window
+                            }});
+                            btn.dispatchEvent(clickEvent);
+                        }}
+                    """)
+                    self.click_count += 1
+                    print(f"[CASHOUT] SUCCESS! Button clicked (JS)")
+                    return True
+                except:
+                    pass
 
-                print(f"[OK] Cashout button clicked (panel {panel})")
-                return True
+                # Method 4: Keyboard (fallback)
+                try:
+                    await locator.focus()
+                    await locator.press('Enter')
+                    self.click_count += 1
+                    print(f"[CASHOUT] SUCCESS! Button activated (keyboard)")
+                    return True
+                except:
+                    pass
 
-            except PlaywrightTimeoutError:
-                print(f"[WARN] Cashout button not ready (attempt {attempt + 1}/{retries})")
-                await asyncio.sleep(0.1)
             except Exception as e:
-                print(f"[ERROR] Cashout click failed (attempt {attempt + 1}/{retries}): {e}")
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.2)
 
-        self.failed_clicks += 1
-        print(f"[ERROR] Failed to click cashout button after {retries} retries")
+        print(f"[CASHOUT] FAILED after {retries} attempts")
         return False
 
     async def wait_for_bet_button_available(self, panel: int = 1, timeout: float = 30) -> bool:

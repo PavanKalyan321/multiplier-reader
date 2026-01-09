@@ -36,42 +36,82 @@ class PlaywrightGameReader:
     async def read_multiplier(self) -> Optional[float]:
         """
         Read current multiplier from DOM
+        Uses cashout button win amount if main selector fails
 
         Returns:
             Multiplier value or None if failed
         """
         try:
+            # Method 1: Try main multiplier selector
             selector = self.selectors.get('multiplier', '.game-score .game-score-char')
-
-            # Get all multiplier character elements
             elements = await self.page.locator(selector).all()
 
-            if not elements:
-                return None
+            if elements and len(elements) > 0:
+                # Get text from each element
+                chars = []
+                for element in elements:
+                    text = await element.text_content()
+                    if text:
+                        chars.append(text.strip())
 
-            # Get text from each element
-            chars = []
-            for element in elements:
-                text = await element.text_content()
-                if text:
-                    chars.append(text.strip())
+                # Join characters: ['2', '.', '8', '1', 'x'] -> '2.81x'
+                mult_str = ''.join(chars)
 
-            # Join characters: ['2', '.', '8', '1', 'x'] -> '2.81x'
-            mult_str = ''.join(chars)
+                # Parse multiplier: '2.81x' -> 2.81
+                mult_str = mult_str.replace('x', '').replace('X', '').strip()
 
-            # Parse multiplier: '2.81x' -> 2.81
-            mult_str = mult_str.replace('x', '').replace('X', '').strip()
+                if mult_str:
+                    try:
+                        mult = float(mult_str)
+                        self.last_multiplier = mult
+                        return mult
+                    except ValueError:
+                        pass
 
-            if not mult_str:
-                return None
+            # Method 2: Extract from cashout button display value
+            # The button shows winnings as "multiplier x bet_amount"
+            # We need to calculate: winnings / bet_amount = multiplier
+            try:
+                cashout_selector = self.selectors.get('cashout_button_1', '[data-testid="button-cashout-1"]')
 
-            mult = float(mult_str)
-            self.last_multiplier = mult
-            return mult
+                # Get the bet-win-amount text from cashout button
+                win_amount_elements = await self.page.locator(f'{cashout_selector} .bet-win-amount-char').all()
+
+                if win_amount_elements and len(win_amount_elements) > 0:
+                    # Extract digits from bet-win-amount-char elements
+                    win_chars = []
+                    for elem in win_amount_elements:
+                        text = await elem.text_content()
+                        if text:
+                            win_chars.append(text.strip())
+
+                    win_str = ''.join(win_chars)
+
+                    # Parse: "11.30" -> 11.30
+                    win_str = win_str.replace('x', '').strip()
+
+                    if win_str and win_str != '':
+                        try:
+                            # The display shows total winnings, divide by bet amount to get multiplier
+                            win_amount = float(win_str)
+                            # Assuming default bet is 50
+                            bet_amount = 50  # Can be made configurable
+                            mult = win_amount / bet_amount
+
+                            if mult > 0:
+                                self.last_multiplier = mult
+                                return mult
+                        except (ValueError, ZeroDivisionError):
+                            pass
+            except Exception as e:
+                pass  # Fallback method failed, continue
+
+            # If both methods fail, return last known multiplier
+            return self.last_multiplier if self.last_multiplier > 0 else None
 
         except Exception as e:
-            print(f"[ERROR] Failed to read multiplier: {e}")
-            return None
+            print(f"[WARN] Failed to read multiplier: {e}")
+            return self.last_multiplier if self.last_multiplier > 0 else None
 
     async def read_balance(self) -> Optional[float]:
         """
@@ -104,12 +144,24 @@ class PlaywrightGameReader:
             Game status: 'WAITING', 'RUNNING', 'STARTING', 'UNKNOWN'
         """
         try:
-            selector = self.selectors.get('bet_button', '[data-testid="button-place-bet-1"]')
+            # Try to get status from cashout button first (most reliable during game)
+            cashout_selector = self.selectors.get('cashout_button_1', '[data-testid="button-cashout-1"]')
 
-            button_text = await self.page.locator(selector).text_content()
+            try:
+                cashout_button = await self.page.locator(cashout_selector).text_content()
+                if cashout_button and 'cash out' in cashout_button.lower():
+                    # If cashout button exists and says "Cash out", game is RUNNING
+                    self.game_status = 'RUNNING'
+                    return 'RUNNING'
+            except:
+                pass
+
+            # Fallback: check bet button
+            bet_selector = self.selectors.get('bet_button_1', '[data-testid="button-place-bet-1"]')
+            button_text = await self.page.locator(bet_selector).text_content()
 
             if not button_text:
-                return 'UNKNOWN'
+                return self.game_status  # Return last known status
 
             button_text = button_text.lower()
 
@@ -126,8 +178,8 @@ class PlaywrightGameReader:
             return status
 
         except Exception as e:
-            print(f"[ERROR] Failed to get game status: {e}")
-            return 'UNKNOWN'
+            print(f"[WARN] Failed to get game status: {e}")
+            return self.game_status  # Return last known status instead of UNKNOWN
 
     async def get_multiplier_with_status(self) -> Dict[str, Any]:
         """

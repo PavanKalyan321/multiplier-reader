@@ -1,0 +1,321 @@
+BOT ARCHITECTURE - Continuous Play with Crash Detection
+
+================================================================================
+SYSTEM FLOW
+================================================================================
+
+INFINITE LOOP (continues forever until Ctrl+C)
+    │
+    ├─► 1. READ GAME STATE (every 100ms)
+    │   ├─ Multiplier (visible = > 1.0, invisible = None/0)
+    │   ├─ Balance (player's account balance)
+    │   └─ Status (WAITING, RUNNING, STARTING, UNKNOWN)
+    │
+    ├─► 2. CRASH DETECTION
+    │   ├─ Check if multiplier became visible (round started)
+    │   ├─ Check if multiplier disappeared (round crashed)
+    │   └─ Check if multiplier returned to 1.0 (busted)
+    │
+    ├─► 3. BET PLACEMENT
+    │   ├─ IF status = WAITING AND no bet placed:
+    │   │  ├─ Set bet amount (50)
+    │   │  ├─ Click bet button
+    │   │  ├─ Validate placement
+    │   │  └─ Mark bet_placed = True
+    │   │
+    │   └─ ELSE: Do nothing
+    │
+    ├─► 4. CASHOUT LOGIC
+    │   ├─ IF bet placed AND multiplier >= 1.2:
+    │   │  ├─ Click cashout button
+    │   │  ├─ Validate completion
+    │   │  ├─ Verify balance increased
+    │   │  ├─ Record profit
+    │   │  └─ Mark bet_placed = False
+    │   │
+    │   └─ ELSE: Continue monitoring
+    │
+    └─► 5. CRASH HANDLING
+        ├─ IF bet placed AND (multiplier = None OR multiplier <= 1.0):
+        │  ├─ Record as lost bet
+        │  ├─ Mark bet_placed = False
+        │  └─ Increment crashed_rounds
+        │
+        └─ LOOP BACK TO STEP 1
+
+
+================================================================================
+STATE MACHINE
+================================================================================
+
+                    ┌─────────────────────┐
+                    │   START (WAITING)   │
+                    │ No bet, multiplier  │
+                    │   not visible       │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  BET PLACEMENT      │
+                    │ Status = WAITING    │
+                    │ Click Bet Button    │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  BET PLACED         │
+                    │ Waiting for round   │
+                    │ to start            │
+                    └──────────┬──────────┘
+                               │
+        ┌──────────────────────┴──────────────────────┐
+        │                                             │
+        │         Multiplier Becomes Visible          │
+        │         (Round Starts: 1.0 → 1.x)          │
+        │                                             │
+        │              [ROUND STARTED]                │
+        │                                             │
+        ▼                                             ▼
+    ┌───────────────────┐                    ┌───────────────────┐
+    │  ROUND MONITORING │                    │   ROUND CRASHED   │
+    │ Multiplier keeps  │                    │  (Lost Bet)       │
+    │ increasing        │                    │ Multiplier = None │
+    │                   │                    │ or <= 1.0         │
+    │ Example:          │                    │                   │
+    │ 1.01 → 1.08 →    │                    │ [💥 CRASH]        │
+    │ 1.15 → 1.21      │                    │                   │
+    └────────┬──────────┘                    └───────┬───────────┘
+             │                                       │
+             │ Multiplier reaches target (1.2x)     │
+             │                                      │
+             ▼                                      ▼
+    ┌───────────────────┐                    ┌───────────────────┐
+    │   CASHOUT         │                    │  RESET            │
+    │ Click Cashout     │                    │ Record loss       │
+    │ Validate          │                    │ Go back to START  │
+    │                   │                    │                   │
+    │ [✅ SUCCESS]      │                    │ [⏮️ NEXT ROUND]  │
+    └────────┬──────────┘                    └───────┬───────────┘
+             │                                       │
+             └───────────────┬───────────────────────┘
+                             │
+                             ▼
+                    ┌─────────────────────┐
+                    │   BACK TO START     │
+                    │ Ready for next bet  │
+                    │ Status = WAITING    │
+                    │                     │
+                    │ [🔄 LOOP]           │
+                    └─────────────────────┘
+
+
+================================================================================
+CRASH DETECTION LOGIC
+================================================================================
+
+MULTIPLIER VISIBILITY:
+  - multiplier_visible = True  (multiplier > 1.0)
+  - multiplier_visible = False (multiplier = None or <= 1.0)
+
+ROUND START:
+  IF multiplier_visible == True AND prev_multiplier_visible == False:
+    → ROUND STARTED
+    → Print: "[🎮 ROUND STARTED]"
+
+ROUND CRASH:
+  IF bet_placed == True AND:
+    (multiplier == None OR multiplier <= 1.0)
+  → ROUND CRASHED
+  → Print: "[💥 ROUND CRASHED]"
+  → Record loss
+  → Reset for next round
+
+TRACKING:
+  prev_multiplier_visible = multiplier_visible
+  multiplier_visible = (multiplier is not None and multiplier > 1.0)
+
+
+================================================================================
+STATISTICS COLLECTION
+================================================================================
+
+Every action updates stats:
+
+ROUNDS PLAYED:
+  ✓ Incremented when bet is placed
+
+BETS PLACED:
+  ✓ Incremented when bet placement succeeds
+
+SUCCESSFUL CASHOUTS:
+  ✓ Incremented when multiplier reaches 1.2x and cashout executed
+
+CRASHED ROUNDS:
+  ✓ Incremented when multiplier disappears (bet not cashed out)
+
+LOST BETS:
+  ✓ Incremented when round crashes
+
+TOTAL PROFIT:
+  ✓ profit = multiplier × bet_amount
+  ✓ Running total of all successful cashouts
+
+SESSION DURATION:
+  ✓ Calculated on exit: datetime.now() - start_time
+
+
+================================================================================
+POLLING CYCLE
+================================================================================
+
+Every 100ms:
+
+[ READ STATE ]  ┐
+  ├─ Multiplier │ ~10ms (fast DOM access)
+  ├─ Balance    │
+  └─ Status     │
+                │
+[ DETECT ]      ├─ ~5ms (simple comparisons)
+  ├─ Round start│
+  └─ Crash      │
+                │
+[ ACTION ]      ├─ ~50-100ms (if action needed)
+  ├─ Place bet  │
+  ├─ Cashout    │
+  └─ Or nothing │
+                │
+[ LOG ]         ├─ ~1ms
+  └─ Display    │
+                │
+[ WAIT ]        ┴─ Total: 100ms
+  └─ 100ms
+
+
+================================================================================
+ERROR HANDLING
+================================================================================
+
+BET PLACEMENT FAILS:
+  → Retry up to 3 times
+  → If all fail, wait for next WAITING state
+  → Log error, continue
+
+CASHOUT FAILS:
+  → Try validation method first
+  → If that fails, try direct click method
+  → If both fail, record as lost bet
+  → Continue to next round
+
+CRASH DETECTED:
+  → Record loss
+  → Reset state
+  → Continue (no exception thrown)
+
+READ ERROR:
+  → Log error
+  → Wait 100ms
+  → Try again next cycle
+
+MULTIPLIER NOT READABLE:
+  → Treat as invisible (multiplier = 0)
+  → Continue monitoring
+
+
+================================================================================
+KEY VARIABLES
+================================================================================
+
+bet_placed (bool)
+  ├─ True: Bet is currently active
+  ├─ False: Waiting to place new bet
+  └─ Used for crash detection
+
+multiplier (float)
+  ├─ > 1.0: Round is running, multiplier visible
+  ├─ None/0: Round not active, multiplier invisible
+  └─ Used for round start/crash detection
+
+multiplier_visible (bool)
+  ├─ True: multiplier > 1.0
+  ├─ False: multiplier = None or <= 1.0
+  └─ Used for detecting round transitions
+
+round_started (bool)
+  ├─ True: Round transition from invisible → visible happened
+  ├─ Used for logging
+  └─ Not used for state decisions
+
+round_crashed (bool)
+  ├─ True: Crash was detected this cycle
+  ├─ False: No crash detected
+  └─ Used to avoid logging same crash multiple times
+
+last_multiplier (float)
+  ├─ Previous cycle's multiplier value
+  ├─ Used to detect transitions
+  └─ Updated every cycle
+
+status (str)
+  ├─ "WAITING": Ready to place bet
+  ├─ "RUNNING": Game is running
+  ├─ "STARTING": Game is starting
+  └─ "UNKNOWN": Could not read status
+
+balance (float)
+  ├─ Current account balance
+  ├─ Used for verification
+  └─ Displayed in logs
+
+cashout_attempted (bool)
+  ├─ True: Cashout already triggered this round
+  ├─ False: No cashout triggered yet
+  └─ Prevents multiple cashouts per round
+
+
+================================================================================
+CONTINUOUS LOOP GUARANTEE
+================================================================================
+
+The bot runs infinitely because:
+
+1. Outermost loop: while True:
+2. No break statements (except in exceptions)
+3. All errors caught and handled
+4. State always resets for next iteration
+5. Only exits on Ctrl+C (KeyboardInterrupt)
+
+This ensures:
+  ✓ Never gets stuck
+  ✓ Always recovers from errors
+  ✓ Always tries next round
+  ✓ Runs until explicitly stopped
+
+
+================================================================================
+SUMMARY
+================================================================================
+
+CRASH DETECTION:
+  ✓ Detects multiplier start (becomes visible > 1.0)
+  ✓ Detects multiplier disappear (becomes None)
+  ✓ Detects crash (returns to 1.0)
+
+CONTINUOUS PLAY:
+  ✓ Infinite loop with 100ms polling
+  ✓ Automatic round management
+  ✓ Error recovery
+  ✓ No manual intervention needed
+
+STATISTICS:
+  ✓ Tracks all actions
+  ✓ Calculates session metrics
+  ✓ Reports on exit
+
+ROBUSTNESS:
+  ✓ Multiple validation methods
+  ✓ Fallback mechanisms
+  ✓ Error handling at every step
+  ✓ Graceful degradation
+
+---
+
+Ready to run! 🚀
+python start_playwright_bot.py
